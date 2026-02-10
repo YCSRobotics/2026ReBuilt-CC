@@ -77,7 +77,7 @@ public class Intake extends SubsystemBase {
     private boolean isHomed = false;
 
     public Intake() {
-        pivotMotor = new TalonFX(Ports.kIntakePivot, Ports.kCANivoreCANBus);
+        pivotMotor = new TalonFX(Ports.kIntakePivot, Ports.kRoboRioCANBus);
         rollerMotor = new TalonFX(Ports.kIntakeRollers, Ports.kRoboRioCANBus);
         configurePivotMotor();
         configureRollerMotor();
