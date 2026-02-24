@@ -1,5 +1,7 @@
 package frc.robot.subsystems;
 
+import static edu.wpi.first.units.Units.Meters;
+
 import java.util.Optional;
 
 import edu.wpi.first.math.Matrix;
@@ -11,6 +13,7 @@ import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants;
 import frc.robot.LimelightHelpers;
 import frc.robot.LimelightHelpers.PoseEstimate;
 
@@ -23,6 +26,21 @@ public class Limelight extends SubsystemBase {
         this.name = name;
         this.telemetryTable = NetworkTableInstance.getDefault().getTable("SmartDashboard/" + name);
         this.posePublisher = telemetryTable.getStructTopic("Estimated Robot Pose", Pose2d.struct).publish();
+        
+        // Configure camera pose relative to robot center
+        LimelightHelpers.setCameraPose_RobotSpace(
+            name,
+            Constants.Limelight.kCameraForwardOffset.in(Meters),
+            Constants.Limelight.kCameraSideOffset.in(Meters),
+            Constants.Limelight.kCameraUpOffset.in(Meters),
+            Constants.Limelight.kCameraRollDegrees,
+            Constants.Limelight.kCameraPitchDegrees,
+            Constants.Limelight.kCameraYawDegrees
+        );
+    }
+
+    public String getName() {
+        return name;
     }
 
     public Optional<Measurement> getMeasurement(Pose2d currentRobotPose) {

@@ -10,6 +10,7 @@ import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import frc.robot.LimelightHelpers;
 
 /**
  * The methods in this class are called automatically corresponding to each mode, as described in
@@ -45,5 +46,23 @@ public class Robot extends TimedRobot {
         // and running subsystem periodic() methods.  This must be called from the robot's periodic
         // block in order for anything in the Command-based framework to work.
         CommandScheduler.getInstance().run();
+    }
+
+    @Override
+    public void disabledInit() {
+        // Reduce Limelight thermal output while disabled by throttling frame processing
+        LimelightHelpers.SetThrottle("limelight", 150);
+    }
+
+    @Override
+    public void autonomousInit() {
+        // Full processing speed for autonomous (throttle = 0)
+        LimelightHelpers.SetThrottle("limelight", 0);
+    }
+
+    @Override
+    public void teleopInit() {
+        // Full processing speed for teleop (throttle = 0)
+        LimelightHelpers.SetThrottle("limelight", 0);
     }
 }
