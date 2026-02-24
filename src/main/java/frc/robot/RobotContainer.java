@@ -9,7 +9,6 @@ import static edu.wpi.first.units.Units.MetersPerSecond;
 import java.util.Optional;
 
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -17,6 +16,8 @@ import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.Driving;
 // import frc.robot.commands.AutoRoutines; // Commented out - requires mechanism subsystems
+import frc.robot.commands.AimAndDriveCommand;
+import frc.robot.commands.AimToAprilTagCommand;
 import frc.robot.commands.ManualDriveCommand;
 // import frc.robot.commands.SubsystemCommands; // Commented out - requires mechanism subsystems
 // import frc.robot.subsystems.Feeder; // Commented out - mechanism disconnected
@@ -49,6 +50,7 @@ public class RobotContainer {
     private final SwerveTelemetry swerveTelemetry = new SwerveTelemetry(Driving.kMaxSpeed.in(MetersPerSecond));
     
     private final CommandXboxController driver = new CommandXboxController(0);
+    private final CommandXboxController operator = new CommandXboxController(1);
 
     // Auto routines commented out - requires mechanism subsystems
     // private final AutoRoutines autoRoutines = new AutoRoutines(
@@ -116,11 +118,16 @@ public class RobotContainer {
             () -> -driver.getRightX()
         );
         swerve.setDefaultCommand(manualDriveCommand);
-        driver.a().onTrue(Commands.runOnce(() -> manualDriveCommand.setLockedHeading(Rotation2d.k180deg)));
-        driver.b().onTrue(Commands.runOnce(() -> manualDriveCommand.setLockedHeading(Rotation2d.kCW_90deg)));
-        driver.x().onTrue(Commands.runOnce(() -> manualDriveCommand.setLockedHeading(Rotation2d.kCCW_90deg)));
-        driver.y().onTrue(Commands.runOnce(() -> manualDriveCommand.setLockedHeading(Rotation2d.kZero)));
         driver.back().onTrue(Commands.runOnce(() -> manualDriveCommand.seedFieldCentric()));
+        
+        // Aim to AprilTag - rotation only, no field/hub (bringup)
+        final AimToAprilTagCommand aimToTagCommand = new AimToAprilTagCommand(swerve, limelight);
+        operator.rightTrigger().or(driver.rightTrigger()).whileTrue(aimToTagCommand);
+
+        // Aim to hub - rotation only, uses field pose and Landmarks (competition)
+        final AimAndDriveCommand aimCommand = new AimAndDriveCommand(swerve);
+        driver.rightBumper().whileTrue(aimCommand);
+        driver.start().onTrue(Commands.runOnce(() -> swerve.resetPose(new Pose2d())));
     }
 
     private Command updateVisionCommand() {
