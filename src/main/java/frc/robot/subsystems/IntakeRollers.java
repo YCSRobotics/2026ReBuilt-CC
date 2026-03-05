@@ -1,5 +1,7 @@
 package frc.robot.subsystems;
 
+import static edu.wpi.first.units.Units.Volts;
+
 import com.revrobotics.PersistMode;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.ResetMode;
@@ -8,6 +10,7 @@ import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkBaseConfig;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
+import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -17,13 +20,12 @@ import frc.robot.Constants;
 import frc.robot.Ports;
 
 /**
- * Floor subsystem: REV Neo (or Neo 2) on SPARK Max.
- * Uses percent output for feed/stop; same CAN ID as before (Talon FX slot freed).
+ * Intake rollers: Neo 2.0 on SPARK Max. Percent output for in/stop.
  */
-public class Floor extends SubsystemBase {
+public class IntakeRollers extends SubsystemBase {
     public enum Speed {
         STOP(0),
-        FEED(0.83);
+        INTAKE(0.8);
 
         private final double percentOutput;
 
@@ -34,6 +36,10 @@ public class Floor extends SubsystemBase {
         public double getPercentOutput() {
             return percentOutput;
         }
+
+        public Voltage voltage() {
+            return Volts.of(percentOutput * 12.0);
+        }
     }
 
     private static final int kSmartCurrentLimitAmps = 40;
@@ -41,9 +47,9 @@ public class Floor extends SubsystemBase {
     private final SparkMax motor;
     private final RelativeEncoder encoder;
 
-    public Floor() {
-        if (Constants.MechanismPresence.kFloor()) {
-            motor = new SparkMax(Ports.kFloor, SparkLowLevel.MotorType.kBrushless);
+    public IntakeRollers() {
+        if (Constants.MechanismPresence.kIntakeRollers()) {
+            motor = new SparkMax(Ports.kIntakeRollers, SparkLowLevel.MotorType.kBrushless);
             final SparkMaxConfig config = new SparkMaxConfig();
             config.idleMode(SparkBaseConfig.IdleMode.kBrake);
             config.inverted(true);
@@ -58,16 +64,10 @@ public class Floor extends SubsystemBase {
     }
 
     public void set(Speed speed) {
-        if (motor != null) {
-            motor.set(speed.getPercentOutput());
-        }
+        if (motor != null) motor.set(speed.getPercentOutput());
     }
 
-    public Command feedCommand() {
-        return startEnd(() -> set(Speed.FEED), () -> set(Speed.STOP));
-    }
-
-    /** Run floor at given speed while held; stop on release. For bringup: use with operator.a() etc. */
+    /** Run rollers while held; stop on release. Requires robot ENABLED (teleop). */
     public Command runCommand(Speed speed) {
         return Commands.run(() -> set(speed), this).finallyDo(() -> set(Speed.STOP));
     }
@@ -78,7 +78,7 @@ public class Floor extends SubsystemBase {
         builder.addBooleanProperty("Present", () -> motor != null, null);
         if (motor != null && encoder != null) {
             builder.addDoubleProperty("RPM", encoder::getVelocity, null);
-            builder.addDoubleProperty("Output Current", motor::getOutputCurrent, null);
+            builder.addDoubleProperty("Roller Supply Current", motor::getOutputCurrent, null);
         }
     }
 }

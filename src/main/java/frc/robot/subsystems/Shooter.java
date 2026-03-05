@@ -24,9 +24,14 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants;
 import frc.robot.Constants.KrakenX60;
 import frc.robot.Ports;
 
+/**
+ * Shooter subsystem (3 Kraken X60). Velocity closed-loop for spool; coast on stop.
+ * Bringup: Operator Y (while held) runs at {@link Constants.Bringup#kShooterRPM}; release stops.
+ */
 public class Shooter extends SubsystemBase {
     private static final AngularVelocity kVelocityTolerance = RPM.of(100);
 
@@ -38,15 +43,20 @@ public class Shooter extends SubsystemBase {
     private double dashboardTargetRPM = 0.0;
 
     public Shooter() {
-        leftMotor = new TalonFX(Ports.kShooterLeft, Ports.kRoboRioCANBus);
-        middleMotor = new TalonFX(Ports.kShooterMiddle, Ports.kRoboRioCANBus);
-        rightMotor = new TalonFX(Ports.kShooterRight, Ports.kRoboRioCANBus);
-        motors = List.of(leftMotor, middleMotor, rightMotor);
-
-        configureMotor(leftMotor, InvertedValue.CounterClockwise_Positive);
-        configureMotor(middleMotor, InvertedValue.Clockwise_Positive);
-        configureMotor(rightMotor, InvertedValue.Clockwise_Positive);
-
+        if (Constants.MechanismPresence.kShooter()) {
+            leftMotor = new TalonFX(Ports.kShooterLeft, Ports.kShooterCANBus);
+            middleMotor = new TalonFX(Ports.kShooterMiddle, Ports.kShooterCANBus);
+            rightMotor = new TalonFX(Ports.kShooterRight, Ports.kShooterCANBus);
+            motors = List.of(leftMotor, middleMotor, rightMotor);
+            configureMotor(leftMotor, InvertedValue.CounterClockwise_Positive);
+            configureMotor(middleMotor, InvertedValue.CounterClockwise_Positive);
+            configureMotor(rightMotor, InvertedValue.Clockwise_Positive);
+        } else {
+            leftMotor = null;
+            middleMotor = null;
+            rightMotor = null;
+            motors = List.of();
+        }
         SmartDashboard.putData(this);
     }
 
@@ -73,27 +83,26 @@ public class Shooter extends SubsystemBase {
                     .withKP(0.5)
                     .withKI(2)
                     .withKD(0)
-                    .withKV(12.0 / KrakenX60.kFreeSpeed.in(RotationsPerSecond)) // 12 volts when requesting max RPS
+                    .withKV(12.0 / KrakenX60.kFreeSpeed.in(RotationsPerSecond))
             );
         
         motor.getConfigurator().apply(config);
+
+        // Reduce CAN traffic so Feeder (SPARK Max) on same Rio bus doesn't timeout when shooter runs
+        motor.getVelocity().setUpdateFrequency(50);
+        motor.getStatorCurrent().setUpdateFrequency(50);
+        motor.getSupplyCurrent().setUpdateFrequency(50);
     }
 
     public void setRPM(double rpm) {
-        for (final TalonFX motor : motors) {
-            motor.setControl(
-                velocityRequest
-                    .withVelocity(RPM.of(rpm))
-            );
+        for (final TalonFX m : motors) {
+            m.setControl(velocityRequest.withVelocity(RPM.of(rpm)));
         }
     }
 
     public void setPercentOutput(double percentOutput) {
-        for (final TalonFX motor : motors) {
-            motor.setControl(
-                voltageRequest
-                    .withOutput(Volts.of(percentOutput * 12.0))
-            );
+        for (final TalonFX m : motors) {
+            m.setControl(voltageRequest.withOutput(Volts.of(percentOutput * 12.0)));
         }
     }
 
@@ -110,10 +119,15 @@ public class Shooter extends SubsystemBase {
         return defer(() -> spinUpCommand(dashboardTargetRPM)); 
     }
 
+    public double getDashboardTargetRPM() {
+        return dashboardTargetRPM;
+    }
+
     public boolean isVelocityWithinTolerance() {
-        return motors.stream().allMatch(motor -> {
-            final boolean isInVelocityMode = motor.getAppliedControl().equals(velocityRequest);
-            final AngularVelocity currentVelocity = motor.getVelocity().getValue();
+        if (motors.isEmpty()) return true;
+        return motors.stream().allMatch(m -> {
+            final boolean isInVelocityMode = m.getAppliedControl().equals(velocityRequest);
+            final AngularVelocity currentVelocity = m.getVelocity().getValue();
             final AngularVelocity targetVelocity = velocityRequest.getVelocityMeasure();
             return isInVelocityMode && currentVelocity.isNear(targetVelocity, kVelocityTolerance);
         });
@@ -127,10 +141,11 @@ public class Shooter extends SubsystemBase {
 
     @Override
     public void initSendable(SendableBuilder builder) {
-        initSendable(builder, leftMotor, "Left");
-        initSendable(builder, middleMotor, "Middle");
-        initSendable(builder, rightMotor, "Right");
         builder.addStringProperty("Command", () -> getCurrentCommand() != null ? getCurrentCommand().getName() : "null", null);
+        builder.addBooleanProperty("Present", () -> !motors.isEmpty(), null);
+        if (leftMotor != null) initSendable(builder, leftMotor, "Left");
+        if (middleMotor != null) initSendable(builder, middleMotor, "Middle");
+        if (rightMotor != null) initSendable(builder, rightMotor, "Right");
         builder.addDoubleProperty("Dashboard RPM", () -> dashboardTargetRPM, value -> dashboardTargetRPM = value);
         builder.addDoubleProperty("Target RPM", () -> velocityRequest.getVelocityMeasure().in(RPM), null);
     }

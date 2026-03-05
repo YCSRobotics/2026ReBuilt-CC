@@ -30,9 +30,13 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Command.InterruptionBehavior;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants;
 import frc.robot.Constants.KrakenX60;
 import frc.robot.Ports;
 
+/**
+ * Hanger: Kraken (Talon FX) with CTRE Motion Magic position control.
+ */
 public class Hanger extends SubsystemBase {
     public enum Position {
         HOMED(0),
@@ -59,61 +63,73 @@ public class Hanger extends SubsystemBase {
     private final MotionMagicVoltage motionMagicRequest = new MotionMagicVoltage(0).withSlot(0);
     private final VoltageOut voltageRequest = new VoltageOut(0);
 
+    private double targetPositionRotations = Position.HOMED.motorAngle().in(Rotations);
     private boolean isHomed = false;
 
     public Hanger() {
-        motor = new TalonFX(Ports.kHanger, Ports.kRoboRioCANBus);
+        if (Constants.MechanismPresence.kHanger()) {
+            motor = new TalonFX(Ports.kHanger, Ports.kRoboRioCANBus);
 
-        final TalonFXConfiguration config = new TalonFXConfiguration()
-            .withMotorOutput(
-                new MotorOutputConfigs()
-                    .withInverted(InvertedValue.Clockwise_Positive)
-                    .withNeutralMode(NeutralModeValue.Brake)
-            )
-            .withCurrentLimits(
-                new CurrentLimitsConfigs()
-                    .withStatorCurrentLimit(Amps.of(20))
-                    .withStatorCurrentLimitEnable(true)
-                    .withSupplyCurrentLimit(Amps.of(70))
-                    .withSupplyCurrentLimitEnable(true)
-            )
-            .withMotionMagic(
-                new MotionMagicConfigs()
-                    .withMotionMagicCruiseVelocity(KrakenX60.kFreeSpeed)
-                    .withMotionMagicAcceleration(KrakenX60.kFreeSpeed.per(Second))
-            )
-            .withSlot0(
-                new Slot0Configs()
-                    .withKP(10)
-                    .withKI(0)
-                    .withKD(0)
-                    .withKV(12.0 / KrakenX60.kFreeSpeed.in(RotationsPerSecond)) // 12 volts when requesting max RPS
-            );
+            final TalonFXConfiguration config = new TalonFXConfiguration()
+                .withMotorOutput(
+                    new MotorOutputConfigs()
+                        .withInverted(InvertedValue.Clockwise_Positive)
+                        .withNeutralMode(NeutralModeValue.Brake)
+                )
+                .withCurrentLimits(
+                    new CurrentLimitsConfigs()
+                        .withStatorCurrentLimit(Amps.of(20))
+                        .withStatorCurrentLimitEnable(true)
+                        .withSupplyCurrentLimit(Amps.of(70))
+                        .withSupplyCurrentLimitEnable(true)
+                )
+                .withMotionMagic(
+                    new MotionMagicConfigs()
+                        .withMotionMagicCruiseVelocity(KrakenX60.kFreeSpeed)
+                        .withMotionMagicAcceleration(KrakenX60.kFreeSpeed.per(Second))
+                )
+                .withSlot0(
+                    new Slot0Configs()
+                        .withKP(10)
+                        .withKI(0)
+                        .withKD(0)
+                        .withKV(12.0 / KrakenX60.kFreeSpeed.in(RotationsPerSecond)) // 12 volts when requesting max RPS
+                );
 
-        motor.getConfigurator().apply(config);
+            motor.getConfigurator().apply(config);
+        } else {
+            motor = null;
+        }
         SmartDashboard.putData(this);
     }
 
     public void set(Position position) {
-        motor.setControl(
-            motionMagicRequest
-                .withPosition(position.motorAngle())
-        );
+        if (motor != null) {
+            targetPositionRotations = position.motorAngle().in(Rotations);
+            motor.setControl(
+                motionMagicRequest
+                    .withPosition(position.motorAngle())
+            );
+        }
     }
 
     public void setPercentOutput(double percentOutput) {
-        motor.setControl(
-            voltageRequest
-                .withOutput(Volts.of(percentOutput * 12.0))
-        );
+        if (motor != null) {
+            motor.setControl(
+                voltageRequest
+                    .withOutput(Volts.of(percentOutput * 12.0))
+            );
+        }
     }
 
     public Command positionCommand(Position position) {
+        if (motor == null) return Commands.none();
         return runOnce(() -> set(position))
             .andThen(Commands.waitUntil(this::isExtensionWithinTolerance));
     }
 
     public Command homingCommand() {
+        if (motor == null) return Commands.none();
         return Commands.sequence(
             runOnce(() -> setPercentOutput(-0.05)),
             Commands.waitUntil(() -> motor.getSupplyCurrent().getValue().in(Amps) > 0.4),
@@ -132,8 +148,9 @@ public class Hanger extends SubsystemBase {
     }
 
     private boolean isExtensionWithinTolerance() {
+        if (motor == null) return true;
         final Distance currentExtension = motorAngleToExtension(motor.getPosition().getValue());
-        final Distance targetExtension = motorAngleToExtension(motionMagicRequest.getPositionMeasure());
+        final Distance targetExtension = motorAngleToExtension(Rotations.of(targetPositionRotations));
         return currentExtension.isNear(targetExtension, kExtensionTolerance);
     }
 
@@ -145,7 +162,10 @@ public class Hanger extends SubsystemBase {
     @Override
     public void initSendable(SendableBuilder builder) {
         builder.addStringProperty("Command", () -> getCurrentCommand() != null ? getCurrentCommand().getName() : "null", null);
-        builder.addDoubleProperty("Extension (inches)", () -> motorAngleToExtension(motor.getPosition().getValue()).in(Inches), null);
-        builder.addDoubleProperty("Supply Current", () -> motor.getSupplyCurrent().getValue().in(Amps), null);
+        builder.addBooleanProperty("Present", () -> motor != null, null);
+        if (motor != null) {
+            builder.addDoubleProperty("Extension (inches)", () -> motorAngleToExtension(motor.getPosition().getValue()).in(Inches), null);
+            builder.addDoubleProperty("Supply Current", () -> motor.getSupplyCurrent().getValue().in(Amps), null);
+        }
     }
 }

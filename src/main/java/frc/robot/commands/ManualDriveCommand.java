@@ -78,6 +78,11 @@ public class ManualDriveCommand extends Command {
         currentState = State.DRIVING_WITH_LOCKED_HEADING;
     }
 
+    /** Clears the snap-to heading so the robot stops rotating toward it (e.g. when button released). */
+    public void clearLockedHeading() {
+        lockedHeading = Optional.empty();
+    }
+
     private void setLockedHeadingToCurrent() {
         final Rotation2d headingInBlueAlliancePerspective = swerve.getState().Pose.getRotation();
         final Rotation2d headingInOperatorPerspective = headingInBlueAlliancePerspective.rotateBy(swerve.getOperatorForwardDirection());
