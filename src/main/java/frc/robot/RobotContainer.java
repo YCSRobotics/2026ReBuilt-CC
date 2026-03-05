@@ -15,18 +15,21 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.Driving;
-// import frc.robot.commands.AutoRoutines; // Commented out - requires mechanism subsystems
+// import frc.robot.commands.AutoRoutines;
 import frc.robot.commands.AimAndDriveCommand;
 import frc.robot.commands.AimToAprilTagCommand;
+import frc.robot.commands.IntakeCommands;
 import frc.robot.commands.ManualDriveCommand;
-// import frc.robot.commands.SubsystemCommands; // Commented out - requires mechanism subsystems
-// import frc.robot.subsystems.Feeder; // Commented out - mechanism disconnected
-// import frc.robot.subsystems.Floor; // Commented out - mechanism disconnected
-// import frc.robot.subsystems.Hanger; // Commented out - mechanism disconnected
-// import frc.robot.subsystems.Hood; // Commented out - mechanism disconnected
-// import frc.robot.subsystems.Intake; // Commented out - mechanism disconnected
+import frc.robot.commands.SubsystemCommands;
+import frc.robot.subsystems.Feeder;
+import frc.robot.subsystems.Floor;
+// import frc.robot.subsystems.Hanger;
+import frc.robot.subsystems.Hood;
+import frc.robot.subsystems.Hanger;
+import frc.robot.subsystems.IntakePivot;
+import frc.robot.subsystems.IntakeRollers;
 import frc.robot.subsystems.Limelight;
-// import frc.robot.subsystems.Shooter; // Commented out - mechanism disconnected
+import frc.robot.subsystems.Shooter;
 import frc.robot.subsystems.Swerve;
 import frc.util.SwerveTelemetry;
 
@@ -38,13 +41,13 @@ import frc.util.SwerveTelemetry;
  */
 public class RobotContainer {
     private final Swerve swerve = new Swerve();
-    // Mechanism subsystems commented out - mechanisms are disconnected on practice robot
-    // private final Intake intake = new Intake();
-    // private final Floor floor = new Floor();
-    // private final Feeder feeder = new Feeder();
-    // private final Shooter shooter = new Shooter();
-    // private final Hood hood = new Hood();
-    // private final Hanger hanger = new Hanger();
+    private final IntakePivot intakePivot = new IntakePivot();
+    private final IntakeRollers intakeRollers = new IntakeRollers();
+    private final Floor floor = new Floor();
+    private final Feeder feeder = new Feeder();
+    private final Shooter shooter = new Shooter();
+    private final Hood hood = new Hood();
+    private final Hanger hanger = new Hanger();
     private final Limelight limelight = new Limelight("limelight");
 
     private final SwerveTelemetry swerveTelemetry = new SwerveTelemetry(Driving.kMaxSpeed.in(MetersPerSecond));
@@ -52,34 +55,17 @@ public class RobotContainer {
     private final CommandXboxController driver = new CommandXboxController(0);
     private final CommandXboxController operator = new CommandXboxController(1);
 
-    // Auto routines commented out - requires mechanism subsystems
-    // private final AutoRoutines autoRoutines = new AutoRoutines(
-    //     swerve,
-    //     intake,
-    //     floor,
-    //     feeder,
-    //     shooter,
-    //     hood,
-    //     hanger,
-    //     limelight
-    // );
-    // Subsystem commands commented out - requires mechanism subsystems
-    // private final SubsystemCommands subsystemCommands = new SubsystemCommands(
-    //     swerve,
-    //     intake,
-    //     floor,
-    //     feeder,
-    //     shooter,
-    //     hood,
-    //     hanger,
-    //     () -> -driver.getLeftY(),
-    //     () -> -driver.getLeftX()
-    // );
+    // private final AutoRoutines autoRoutines = new AutoRoutines(swerve, intakePivot, intakeRollers, floor, feeder, shooter, hood, hanger, limelight);
+    private final SubsystemCommands subsystemCommands = new SubsystemCommands(
+        swerve, intakePivot, intakeRollers, floor, feeder, shooter, hood, hanger,
+        () -> -driver.getLeftY(),
+        () -> -driver.getLeftX()
+    );
     
     /** The container for the robot. Contains subsystems, OI devices, and commands. */
     public RobotContainer() {
         configureBindings();
-        // autoRoutines.configure(); // Commented out - requires mechanism subsystems
+        // autoRoutines.configure();
         swerve.registerTelemetry(swerveTelemetry::telemeterize);
     }
     
@@ -93,21 +79,50 @@ public class RobotContainer {
      * joysticks}.
      */
     private void configureBindings() {
+        if (Constants.kBringupMode) {
+            configureManualDriveBindings();
+            configureBringupBindings();
+            return;
+        }
+
         configureManualDriveBindings();
         limelight.setDefaultCommand(updateVisionCommand());
 
-        // Mechanism button bindings commented out - mechanisms are disconnected
-        // RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop())
-        //     .onTrue(intake.homingCommand())
-        //     .onTrue(hanger.homingCommand());
+        RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop())
+            .onTrue(intakePivot.homingCommand())
+            .onTrue(hanger.homingCommand());
+        driver.rightTrigger().whileTrue(subsystemCommands.aimAndShoot());
+        driver.rightBumper().whileTrue(subsystemCommands.shootManually());
+        driver.leftTrigger().whileTrue(IntakeCommands.intakeCommand(intakePivot, intakeRollers));
+        driver.leftBumper().onTrue(intakePivot.runOnce(() -> intakePivot.set(IntakePivot.Position.STOWED)));
+        driver.povUp().onTrue(hanger.positionCommand(Hanger.Position.HANGING));
+        driver.povDown().onTrue(hanger.positionCommand(Hanger.Position.HUNG));
+    }
 
-        // driver.rightTrigger().whileTrue(subsystemCommands.aimAndShoot());
-        // driver.rightBumper().whileTrue(subsystemCommands.shootManually());
-        // driver.leftTrigger().whileTrue(intake.intakeCommand());
-        // driver.leftBumper().onTrue(intake.runOnce(() -> intake.set(Intake.Position.STOWED)));
-
-        // driver.povUp().onTrue(hanger.positionCommand(Hanger.Position.HANGING));
-        // driver.povDown().onTrue(hanger.positionCommand(Hanger.Position.HUNG));
+    /**
+     * Bringup: one button per subsystem (operator). Hold one button at a time to verify.
+     * Driver stick = swerve. Order: Floor → Intake → Feeder → Shooter → Hanger.
+     * Bringup-only constants: {@link Constants.Bringup}. Search codebase for "Bringup" to find all bringup code.
+     */
+    private void configureBringupBindings() {
+        // Bringup: Operator A = Floor feed (while held); release to stop.
+        operator.a().whileTrue(floor.runCommand(Floor.Speed.FEED));
+        // Bringup: Operator B = Intake rollers only (while held)
+        operator.b().whileTrue(intakeRollers.runCommand(IntakeRollers.Speed.INTAKE));
+        // Operator X = Feeder feed (while held). Only bind when present to avoid CAN traffic for absent device.
+        if (Constants.MechanismPresence.kFeeder()) {
+            operator.x().whileTrue(feeder.feedCommand());
+        }
+        // Bringup: Operator Y = Shooter at low RPM (velocity closed-loop). Only bind when present.
+        if (Constants.MechanismPresence.kShooter()) {
+            operator.y().whileTrue(
+                Commands.run(() -> shooter.setRPM(Constants.Bringup.kShooterRPM), shooter).finallyDo(() -> shooter.stop()));
+        }
+        // Operator LB = Hanger extend; RB = Hanger retract (while held)
+        operator.leftBumper().whileTrue(
+            Commands.run(() -> hanger.setPercentOutput(0.2), hanger).finallyDo(() -> hanger.setPercentOutput(0)));
+        operator.rightBumper().whileTrue(
+            Commands.run(() -> hanger.setPercentOutput(-0.2), hanger).finallyDo(() -> hanger.setPercentOutput(0)));
     }
 
     private void configureManualDriveBindings() {
@@ -128,6 +143,19 @@ public class RobotContainer {
         final AimAndDriveCommand aimCommand = new AimAndDriveCommand(swerve);
         driver.rightBumper().whileTrue(aimCommand);
         driver.start().onTrue(Commands.runOnce(() -> swerve.resetPose(new Pose2d())));
+    }
+
+    /**
+     * Competition sequence for feeder + shooter only: spin up shooter to dashboard RPM,
+     * wait until at speed, then run feeder for {@link Constants.ShooterFeeder#kFeedDurationSeconds}.
+     * Use when Hood/Floor/Intake are not in the loop.
+     */
+    private Command shootSequenceCommand() {
+        Command cmd = shooter.spinUpCommand(shooter.getDashboardTargetRPM())
+            .andThen(feeder.feedCommand().withTimeout(Constants.ShooterFeeder.kFeedDurationSeconds))
+            .finallyDo(() -> shooter.stop());
+        cmd.addRequirements(shooter, feeder);
+        return cmd;
     }
 
     private Command updateVisionCommand() {

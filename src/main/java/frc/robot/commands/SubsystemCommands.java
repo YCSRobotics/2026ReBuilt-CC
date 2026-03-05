@@ -8,13 +8,15 @@ import frc.robot.subsystems.Feeder;
 import frc.robot.subsystems.Floor;
 import frc.robot.subsystems.Hanger;
 import frc.robot.subsystems.Hood;
-import frc.robot.subsystems.Intake;
+import frc.robot.subsystems.IntakePivot;
+import frc.robot.subsystems.IntakeRollers;
 import frc.robot.subsystems.Shooter;
 import frc.robot.subsystems.Swerve;
 
 public final class SubsystemCommands {
     private final Swerve swerve;
-    private final Intake intake;
+    private final IntakePivot intakePivot;
+    private final IntakeRollers intakeRollers;
     private final Floor floor;
     private final Feeder feeder;
     private final Shooter shooter;
@@ -26,7 +28,8 @@ public final class SubsystemCommands {
 
     public SubsystemCommands(
         Swerve swerve,
-        Intake intake,
+        IntakePivot intakePivot,
+        IntakeRollers intakeRollers,
         Floor floor,
         Feeder feeder,
         Shooter shooter,
@@ -36,7 +39,8 @@ public final class SubsystemCommands {
         DoubleSupplier leftInput
     ) {
         this.swerve = swerve;
-        this.intake = intake;
+        this.intakePivot = intakePivot;
+        this.intakeRollers = intakeRollers;
         this.floor = floor;
         this.feeder = feeder;
         this.shooter = shooter;
@@ -49,7 +53,8 @@ public final class SubsystemCommands {
 
     public SubsystemCommands(
         Swerve swerve,
-        Intake intake,
+        IntakePivot intakePivot,
+        IntakeRollers intakeRollers,
         Floor floor,
         Feeder feeder,
         Shooter shooter,
@@ -58,7 +63,8 @@ public final class SubsystemCommands {
     ) {
         this(
             swerve,
-            intake,
+            intakePivot,
+            intakeRollers,
             floor,
             feeder,
             shooter,
@@ -93,7 +99,7 @@ public final class SubsystemCommands {
             Commands.parallel(
                 feeder.feedCommand(),
                 Commands.waitSeconds(0.125)
-                    .andThen(floor.feedCommand().alongWith(intake.agitateCommand()))
+                    .andThen(floor.feedCommand().alongWith(IntakeCommands.agitateCommand(intakePivot, intakeRollers)))
             )
         );
     }
