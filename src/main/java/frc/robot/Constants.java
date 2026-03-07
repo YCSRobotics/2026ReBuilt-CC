@@ -24,7 +24,7 @@ import frc.robot.generated.TunerConstants;
  */
 public final class Constants {
     /** When true, only drive + operator bringup test buttons are active (one mechanism per button). Set false for competition. */
-    public static final boolean kBringupMode = false;
+    public static final boolean kBringupMode = true;
 
     /**
      * Constants used only when {@link #kBringupMode} is true (subsystem bringup / test).
@@ -64,10 +64,10 @@ public final class Constants {
         public static boolean kHanger() { return !kSwerveOnlyBringup && kHangerPresent; }
 
         private static final boolean kFloorPresent = false;
-        private static final boolean kIntakePivotPresent = false;
+        private static final boolean kIntakePivotPresent = true;  // pivot bringup: ID 51 on CAN
         private static final boolean kIntakeRollersPresent = false;
-        private static final boolean kFeederPresent = true;   // competition: shooter/feeder sequence
-        private static final boolean kShooterPresent = true; // competition: aimAndShoot / shootManually
+        private static final boolean kFeederPresent = false;   // competition: shooter/feeder sequence
+        private static final boolean kShooterPresent = false; // competition: aimAndShoot / shootManually
         private static final boolean kHangerPresent = false;
     }
 

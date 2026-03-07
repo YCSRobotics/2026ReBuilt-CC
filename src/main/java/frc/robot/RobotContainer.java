@@ -82,6 +82,13 @@ public class RobotContainer {
         if (Constants.kBringupMode) {
             configureManualDriveBindings();
             configureBringupBindings();
+            // Run pivot (and hanger) homing on enable so STOWED/INTAKE are from a known position.
+            RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop())
+                .onTrue(intakePivot.homingCommand());
+            if (Constants.MechanismPresence.kHanger()) {
+                RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop())
+                    .onTrue(hanger.homingCommand());
+            }
             return;
         }
 
@@ -109,6 +116,12 @@ public class RobotContainer {
         operator.a().whileTrue(floor.runCommand(Floor.Speed.FEED));
         // Bringup: Operator B = Intake rollers only (while held)
         operator.b().whileTrue(intakeRollers.runCommand(IntakeRollers.Speed.INTAKE));
+        // Bringup: Operator Left Trigger = Intake pivot (INTAKE while held; on release command STOWED only — do not stopMoving() or closed-loop setpoint can fail to take over).
+        if (Constants.MechanismPresence.kIntakePivot()) {
+            final Command pivotBringupCommand = Commands.run(() -> intakePivot.set(IntakePivot.Position.INTAKE), intakePivot)
+                .finallyDo(() -> intakePivot.set(IntakePivot.Position.STOWED));
+            operator.leftTrigger().whileTrue(pivotBringupCommand);
+        }
         // Operator X = Feeder feed (while held). Only bind when present to avoid CAN traffic for absent device.
         if (Constants.MechanismPresence.kFeeder()) {
             operator.x().whileTrue(feeder.feedCommand());
