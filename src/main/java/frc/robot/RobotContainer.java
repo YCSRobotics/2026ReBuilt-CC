@@ -82,9 +82,9 @@ public class RobotContainer {
         if (Constants.kBringupMode) {
             configureManualDriveBindings();
             configureBringupBindings();
-            // Run pivot (and hanger) homing on enable so STOWED/INTAKE are from a known position.
-            RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop())
-                .onTrue(intakePivot.homingCommand());
+            // Intake pivot homing disabled — causes violent motion; focus on shooter/feeder/floor only.
+            // RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop())
+            //     .onTrue(Commands.waitSeconds(0.3).andThen(intakePivot.homingCommand()));
             if (Constants.MechanismPresence.kHanger()) {
                 RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop())
                     .onTrue(hanger.homingCommand());
@@ -95,13 +95,14 @@ public class RobotContainer {
         configureManualDriveBindings();
         limelight.setDefaultCommand(updateVisionCommand());
 
+        // Intake pivot homing removed — pivot not working; focus on hand-fed floor + shooter/feeder/floor only.
         RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop())
-            .onTrue(intakePivot.homingCommand())
-            .onTrue(hanger.homingCommand());
+            .onTrue(Commands.waitSeconds(0.3).andThen(hanger.homingCommand()));
         driver.rightTrigger().whileTrue(subsystemCommands.aimAndShoot());
         driver.rightBumper().whileTrue(subsystemCommands.shootManually());
-        driver.leftTrigger().whileTrue(IntakeCommands.intakeCommand(intakePivot, intakeRollers));
-        driver.leftBumper().onTrue(intakePivot.runOnce(() -> intakePivot.set(IntakePivot.Position.STOWED)));
+        // Intake commented out — pivot not ready; hand-feed fuel on floor, use shooter/feeder/floor only.
+        // driver.leftTrigger().debounce(0.15).whileTrue(IntakeCommands.intakeCommand(intakePivot, intakeRollers));
+        // driver.leftBumper().onTrue(intakePivot.runOnce(() -> intakePivot.set(IntakePivot.Position.STOWED)));
         driver.povUp().onTrue(hanger.positionCommand(Hanger.Position.HANGING));
         driver.povDown().onTrue(hanger.positionCommand(Hanger.Position.HUNG));
     }
@@ -116,12 +117,12 @@ public class RobotContainer {
         operator.a().whileTrue(floor.runCommand(Floor.Speed.FEED));
         // Bringup: Operator B = Intake rollers only (while held)
         operator.b().whileTrue(intakeRollers.runCommand(IntakeRollers.Speed.INTAKE));
-        // Bringup: Operator Left Trigger = Intake pivot (INTAKE while held; on release command STOWED only — do not stopMoving() or closed-loop setpoint can fail to take over).
-        if (Constants.MechanismPresence.kIntakePivot()) {
-            final Command pivotBringupCommand = Commands.run(() -> intakePivot.set(IntakePivot.Position.INTAKE), intakePivot)
-                .finallyDo(() -> intakePivot.set(IntakePivot.Position.STOWED));
-            operator.leftTrigger().whileTrue(pivotBringupCommand);
-        }
+        // Intake pivot disabled — was causing violent back-and-forth; re-enable when pivot is fixed.
+        // if (Constants.MechanismPresence.kIntakePivot()) {
+        //     final Command pivotBringupCommand = Commands.run(() -> intakePivot.set(IntakePivot.Position.INTAKE), intakePivot)
+        //         .finallyDo(() -> intakePivot.set(IntakePivot.Position.STOWED));
+        //     operator.leftTrigger().debounce(0.15).whileTrue(pivotBringupCommand);
+        // }
         // Operator X = Feeder feed (while held). Only bind when present to avoid CAN traffic for absent device.
         if (Constants.MechanismPresence.kFeeder()) {
             operator.x().whileTrue(feeder.feedCommand());
@@ -152,9 +153,11 @@ public class RobotContainer {
         final AimToAprilTagCommand aimToTagCommand = new AimToAprilTagCommand(swerve, limelight);
         operator.rightTrigger().or(driver.rightTrigger()).whileTrue(aimToTagCommand);
 
-        // Aim to hub - rotation only, uses field pose and Landmarks (competition)
+        // Aim to hub - rotation only. Only in bringup; in competition right bumper = shootManually.
         final AimAndDriveCommand aimCommand = new AimAndDriveCommand(swerve);
-        driver.rightBumper().whileTrue(aimCommand);
+        if (Constants.kBringupMode) {
+            driver.rightBumper().whileTrue(aimCommand);
+        }
         driver.start().onTrue(Commands.runOnce(() -> swerve.resetPose(new Pose2d())));
     }
 

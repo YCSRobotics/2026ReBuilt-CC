@@ -93,13 +93,13 @@ public final class SubsystemCommands {
             .handleInterrupt(() -> shooter.stop());
     }
 
+    /** Feeder + floor only; intake agitate omitted for testing (pivot not ready). */
     private Command feed() {
         return Commands.sequence(
             Commands.waitSeconds(0.25),
             Commands.parallel(
                 feeder.feedCommand(),
-                Commands.waitSeconds(0.125)
-                    .andThen(floor.feedCommand().alongWith(IntakeCommands.agitateCommand(intakePivot, intakeRollers)))
+                Commands.waitSeconds(0.125).andThen(floor.feedCommand())
             )
         );
     }

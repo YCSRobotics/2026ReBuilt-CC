@@ -24,7 +24,7 @@ import frc.robot.generated.TunerConstants;
  */
 public final class Constants {
     /** When true, only drive + operator bringup test buttons are active (one mechanism per button). Set false for competition. */
-    public static final boolean kBringupMode = true;
+    public static final boolean kBringupMode = false;
 
     /**
      * Constants used only when {@link #kBringupMode} is true (subsystem bringup / test).
