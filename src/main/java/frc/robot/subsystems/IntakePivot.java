@@ -55,26 +55,28 @@ public class IntakePivot extends SubsystemBase {
     private static final double kPivotReduction = 50.0;
     private static final Angle kPositionTolerance = Degrees.of(5);
 
-    /** Reduced from 5e-3 to lessen overshoot and velocity jitter (shaky/constrained feel). */
-    private static final double kP = 3e-3;
+    /** MAXMotion feeds profile setpoints (small per-step error); need high P so ~0.5° error still gives ≥5% (0.1*0.5=0.05). */
+    private static final double kP = 0.1;
     private static final double kI = 0;
     /** Dampens oscillation when holding position after homing (no trigger pressed). */
     private static final double kD = 1e-4;
     private static final double kIz = 0;
-    private static final double kMaxOutput = 1;
-    private static final double kMinOutput = -1;
-    /** Scale &lt; 1 slows motion; 0.04 reduces shakiness; increase toward 0.08+ only after verifying smooth motion. */
-    private static final double kSpeedScaleForDirectionCheck = 0.04;
-    private static final double kCruiseVelRPM = Neo2.kFreeSpeed.in(RPM) * 0.8 * kSpeedScaleForDirectionCheck;
-    private static final double kMaxAccelRPMPerSec = 400 * kSpeedScaleForDirectionCheck;
+    /** Clamp 75%: allows faster tracking of profile; was 50% when motion was conservative. */
+    private static final double kMaxOutput = 0.75;
+    private static final double kMinOutput = -0.75;
+    /** Scale 1.0 = full profile speed; reduction factor 1.0 = cruise at free speed (5670 RPM). */
+    private static final double kSpeedScaleForDirectionCheck = 1.0;
+    private static final double kCruiseVelRPM = Neo2.kFreeSpeed.in(RPM) * 1.0 * kSpeedScaleForDirectionCheck;
+    /** Higher accel = faster ramp to cruise; 800 RPM/s → ~7 s to 5670 RPM (was 400). */
+    private static final double kMaxAccelRPMPerSec = 800 * kSpeedScaleForDirectionCheck;
     /** Looser tolerance so profile doesn't over-correct and cause back-and-forth oscillation. */
     private static final double kAllowedErrDegrees = 8;
     private static final int kSmartCurrentLimitAmps = 40;
-    /** true = motor positive raises pivot (encoder increases toward STOWED 100°). Required so release → set(STOWED) physically returns from intake. */
-    private static final boolean kPivotMotorInverted = true;
+    /** false = motor positive lowers pivot (encoder decreases toward INTAKE). Reversed so homing drives toward 110° stop. */
+    private static final boolean kPivotMotorInverted = false;
     /** Lower value = slower homing so you can stop if pivot moves wrong way. */
     private static final double kHomingPercentOutput = 0.05;
-    /** true = drive toward 110° stop with +output (raises pivot). Use one direction only: encoder is unreliable at startup. */
+    /** true = drive toward 110° stop with +output. With motor inverted=false, positive output raises pivot to stop. */
     private static final boolean kHomingPositiveTowardStop = true;
     /** Current (A) above which we consider the pivot at the hard stop. */
     private static final double kHomingCurrentThresholdAmps = 6;
@@ -113,7 +115,8 @@ public class IntakePivot extends SubsystemBase {
                 .d(kD)
                 .iZone(kIz)
                 .outputRange(kMinOutput, kMaxOutput);
-            config.closedLoop.feedForward.kV(12.0 / Neo2.kFreeSpeed.in(RotationsPerSecond));
+            // REV kV is Volts per RPM. Bump to 40% so feedforward helps when profile requests motion (~5%+ at low speed).
+            config.closedLoop.feedForward.kV(0.4 * 12.0 / Neo2.kFreeSpeed.in(RPM));
             config.closedLoop.maxMotion
                 .cruiseVelocity(kCruiseVelRPM)        // Motor RPM
                 .maxAcceleration(kMaxAccelRPMPerSec) // Motor RPM per second
@@ -122,7 +125,8 @@ public class IntakePivot extends SubsystemBase {
             config.encoder
                 .positionConversionFactor(360.0 / kPivotReduction) // 1 motor rot = 7.2 degrees (mechanism)
                 .velocityConversionFactor(1.0);                   // Motor RPM
-            motor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
+            // Persist so motor inversion is stored on SPARK Max (applies to percent output during homing).
+            motor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
             closedLoop = motor.getClosedLoopController();
             encoder = motor.getEncoder();
             targetPositionDegrees = Position.STOWED.angle().in(Degrees);
@@ -214,6 +218,8 @@ public class IntakePivot extends SubsystemBase {
     public void initSendable(SendableBuilder builder) {
         builder.addStringProperty("Command", () -> getCurrentCommand() != null ? getCurrentCommand().getName() : "null", null);
         builder.addBooleanProperty("Present", () -> motor != null, null);
+        builder.addDoubleProperty("Target (deg)", () -> targetPositionDegrees, null);
+        builder.addDoubleProperty("State", () -> (double) pivotLogState, null); // 0=idle, 1=homing, 2=stowed, 3=intake, 4=agitate
         if (motor != null && encoder != null) {
             builder.addDoubleProperty("Angle (deg)", encoder::getPosition, null);
             builder.addDoubleProperty("Velocity (RPM)", encoder::getVelocity, null);

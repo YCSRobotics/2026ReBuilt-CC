@@ -65,7 +65,7 @@ public final class Constants {
 
         private static final boolean kFloorPresent = false;
         private static final boolean kIntakePivotPresent = true;  // pivot bringup: ID 51 on CAN
-        private static final boolean kIntakeRollersPresent = false;
+        private static final boolean kIntakeRollersPresent = true;  // intake rollers on CAN (Ports.kIntakeRollers)
         private static final boolean kFeederPresent = false;   // competition: shooter/feeder sequence
         private static final boolean kShooterPresent = false; // competition: aimAndShoot / shootManually
         private static final boolean kHangerPresent = false;
