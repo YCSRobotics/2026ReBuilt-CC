@@ -19,7 +19,9 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
 import edu.wpi.first.units.measure.AngularVelocity;
+import edu.wpi.first.util.datalog.DoubleLogEntry;
 import edu.wpi.first.util.sendable.SendableBuilder;
+import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -42,6 +44,12 @@ public class Shooter extends SubsystemBase {
 
     private double dashboardTargetRPM = 0.0;
 
+    /** Logged for Advantage Scope replay (same pattern as IntakePivot). */
+    private DoubleLogEntry targetRpmLog;
+    private DoubleLogEntry leftRpmLog;
+    private DoubleLogEntry middleRpmLog;
+    private DoubleLogEntry rightRpmLog;
+
     public Shooter() {
         if (Constants.MechanismPresence.kShooter()) {
             leftMotor = new TalonFX(Ports.kShooterLeft, Ports.kShooterCANBus);
@@ -51,13 +59,31 @@ public class Shooter extends SubsystemBase {
             configureMotor(leftMotor, InvertedValue.CounterClockwise_Positive);
             configureMotor(middleMotor, InvertedValue.CounterClockwise_Positive);
             configureMotor(rightMotor, InvertedValue.Clockwise_Positive);
+            targetRpmLog = new DoubleLogEntry(DataLogManager.getLog(), "/shooter/target_rpm");
+            leftRpmLog = new DoubleLogEntry(DataLogManager.getLog(), "/shooter/left_rpm");
+            middleRpmLog = new DoubleLogEntry(DataLogManager.getLog(), "/shooter/middle_rpm");
+            rightRpmLog = new DoubleLogEntry(DataLogManager.getLog(), "/shooter/right_rpm");
         } else {
             leftMotor = null;
             middleMotor = null;
             rightMotor = null;
             motors = List.of();
+            targetRpmLog = null;
+            leftRpmLog = null;
+            middleRpmLog = null;
+            rightRpmLog = null;
         }
         SmartDashboard.putData(this);
+    }
+
+    @Override
+    public void periodic() {
+        if (motors.isEmpty()) return;
+        final double targetRpm = velocityRequest.getVelocityMeasure().in(RPM);
+        targetRpmLog.append(targetRpm);
+        leftRpmLog.append(leftMotor.getVelocity().getValue().in(RPM));
+        middleRpmLog.append(middleMotor.getVelocity().getValue().in(RPM));
+        rightRpmLog.append(rightMotor.getVelocity().getValue().in(RPM));
     }
 
     private void configureMotor(TalonFX motor, InvertedValue invertDirection) {
