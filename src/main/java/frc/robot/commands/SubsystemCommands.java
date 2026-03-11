@@ -99,7 +99,7 @@ public final class SubsystemCommands {
             Commands.waitSeconds(0.25),
             Commands.parallel(
                 feeder.feedCommand(),
-                Commands.waitSeconds(0.125).andThen(floor.feedCommand())
+                Commands.waitSeconds(2).andThen(floor.feedCommand())
             )
         );
     }
