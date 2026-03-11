@@ -94,6 +94,7 @@ public class Feeder extends SubsystemBase {
         if (motor != null && encoder != null) {
             builder.addDoubleProperty("RPM", encoder::getVelocity, null);
             builder.addDoubleProperty("Output Current", motor::getOutputCurrent, null);
+            builder.addDoubleProperty("Applied Output", motor::getAppliedOutput, null);
         }
     }
 }
