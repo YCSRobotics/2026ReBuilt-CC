@@ -57,7 +57,7 @@ public class Feeder extends SubsystemBase {
             config.inverted(false);
             config.smartCurrentLimit(kSmartCurrentLimitAmps);
             config.closedLoop
-                .p(6e-5)
+                .p(6e-5)//was 6e-5, then 6e-3
                 .i(0)
                 .d(0)
                 .outputRange(-1, 1);
