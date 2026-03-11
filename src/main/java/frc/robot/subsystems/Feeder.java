@@ -57,7 +57,7 @@ public class Feeder extends SubsystemBase {
             config.inverted(false);
             config.smartCurrentLimit(kSmartCurrentLimitAmps);
             config.closedLoop
-                .p(6e-5)//was 6e-5, then 6e-3
+                .p(6e-5)
                 .i(0)
                 .d(0)
                 .outputRange(-1, 1);
@@ -83,8 +83,9 @@ public class Feeder extends SubsystemBase {
         if (motor != null) motor.set(percentOutput);
     }
 
+    /** Feed using full duty cycle so motor always gets max power (velocity control was not pushing). */
     public Command feedCommand() {
-        return startEnd(() -> set(Speed.FEED), () -> setPercentOutput(0));
+        return startEnd(() -> setPercentOutput(0.8), () -> setPercentOutput(0));
     }
 
     @Override
