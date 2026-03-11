@@ -6,12 +6,15 @@ import static edu.wpi.first.units.Units.Seconds;
 import static edu.wpi.first.units.Units.Value;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.networktables.GenericEntry;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.units.measure.Time;
 import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -21,12 +24,15 @@ import frc.robot.Ports;
 public class Hood extends SubsystemBase {
     private static final Distance kServoLength = Millimeters.of(100);
     private static final LinearVelocity kMaxServoSpeed = Millimeters.of(20).per(Second);
+    private static final double kDefaultPosition = 0.5;
     private static final double kMinPosition = 0.01;
     private static final double kMaxPosition = 0.77;
     private static final double kPositionTolerance = 0.01;
 
     private final Servo leftServo;
     private final Servo rightServo;
+    private final ShuffleboardTab hoodTab = Shuffleboard.getTab("Hood");
+    private final GenericEntry positionEntry = hoodTab.add("Position", kDefaultPosition).getEntry();
 
     private double currentPosition = 0.5;
     private double targetPosition = 0.5;
@@ -78,6 +84,10 @@ public class Hood extends SubsystemBase {
 
     @Override
     public void periodic() {
+        final double dashboardPosition = positionEntry.getDouble(kDefaultPosition);
+        if (getCurrentCommand() == null) {
+            setPosition(dashboardPosition);
+        }
         updateCurrentPosition();
     }
 
