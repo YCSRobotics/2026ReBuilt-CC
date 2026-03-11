@@ -18,10 +18,11 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
+import edu.wpi.first.networktables.GenericEntry;
 import edu.wpi.first.units.measure.AngularVelocity;
-import edu.wpi.first.util.datalog.DoubleLogEntry;
 import edu.wpi.first.util.sendable.SendableBuilder;
-import edu.wpi.first.wpilibj.DataLogManager;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -35,6 +36,7 @@ import frc.robot.Ports;
  * Bringup: Operator Y (while held) runs at {@link Constants.Bringup#kShooterRPM}; release stops.
  */
 public class Shooter extends SubsystemBase {
+    private static final double kDefaultTargetRPM = 3000.0;
     private static final AngularVelocity kVelocityTolerance = RPM.of(100);
 
     private final TalonFX leftMotor, middleMotor, rightMotor;
@@ -42,13 +44,9 @@ public class Shooter extends SubsystemBase {
     private final VelocityVoltage velocityRequest = new VelocityVoltage(0).withSlot(0);
     private final VoltageOut voltageRequest = new VoltageOut(0);
 
-    private double dashboardTargetRPM = 0.0;
-
-    /** Logged for Advantage Scope replay (same pattern as IntakePivot). */
-    private DoubleLogEntry targetRpmLog;
-    private DoubleLogEntry leftRpmLog;
-    private DoubleLogEntry middleRpmLog;
-    private DoubleLogEntry rightRpmLog;
+    private final ShuffleboardTab shooterTab = Shuffleboard.getTab("Shooter");
+    private final GenericEntry targetRpmEntry = shooterTab.add("Target RPM", kDefaultTargetRPM).getEntry();
+    private double dashboardTargetRPM = kDefaultTargetRPM;
 
     public Shooter() {
         if (Constants.MechanismPresence.kShooter()) {
@@ -59,31 +57,18 @@ public class Shooter extends SubsystemBase {
             configureMotor(leftMotor, InvertedValue.CounterClockwise_Positive);
             configureMotor(middleMotor, InvertedValue.CounterClockwise_Positive);
             configureMotor(rightMotor, InvertedValue.Clockwise_Positive);
-            targetRpmLog = new DoubleLogEntry(DataLogManager.getLog(), "/shooter/target_rpm");
-            leftRpmLog = new DoubleLogEntry(DataLogManager.getLog(), "/shooter/left_rpm");
-            middleRpmLog = new DoubleLogEntry(DataLogManager.getLog(), "/shooter/middle_rpm");
-            rightRpmLog = new DoubleLogEntry(DataLogManager.getLog(), "/shooter/right_rpm");
         } else {
             leftMotor = null;
             middleMotor = null;
             rightMotor = null;
             motors = List.of();
-            targetRpmLog = null;
-            leftRpmLog = null;
-            middleRpmLog = null;
-            rightRpmLog = null;
         }
         SmartDashboard.putData(this);
     }
 
     @Override
     public void periodic() {
-        if (motors.isEmpty()) return;
-        final double targetRpm = velocityRequest.getVelocityMeasure().in(RPM);
-        targetRpmLog.append(targetRpm);
-        leftRpmLog.append(leftMotor.getVelocity().getValue().in(RPM));
-        middleRpmLog.append(middleMotor.getVelocity().getValue().in(RPM));
-        rightRpmLog.append(rightMotor.getVelocity().getValue().in(RPM));
+        dashboardTargetRPM = targetRpmEntry.getDouble(kDefaultTargetRPM);
     }
 
     private void configureMotor(TalonFX motor, InvertedValue invertDirection) {
@@ -113,11 +98,6 @@ public class Shooter extends SubsystemBase {
             );
         
         motor.getConfigurator().apply(config);
-
-        // Reduce CAN traffic so Feeder (SPARK Max) on same Rio bus doesn't timeout when shooter runs
-        motor.getVelocity().setUpdateFrequency(50);
-        motor.getStatorCurrent().setUpdateFrequency(50);
-        motor.getSupplyCurrent().setUpdateFrequency(50);
     }
 
     public void setRPM(double rpm) {
@@ -172,7 +152,6 @@ public class Shooter extends SubsystemBase {
         if (leftMotor != null) initSendable(builder, leftMotor, "Left");
         if (middleMotor != null) initSendable(builder, middleMotor, "Middle");
         if (rightMotor != null) initSendable(builder, rightMotor, "Right");
-        builder.addDoubleProperty("Dashboard RPM", () -> dashboardTargetRPM, value -> dashboardTargetRPM = value);
-        builder.addDoubleProperty("Target RPM", () -> velocityRequest.getVelocityMeasure().in(RPM), null);
+        builder.addDoubleProperty("Target RPM", () -> dashboardTargetRPM, null);
     }
 }

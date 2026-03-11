@@ -67,8 +67,8 @@ public class IntakePivot extends SubsystemBase {
     /** Scale 1.0 = full profile speed; reduction factor 1.0 = cruise at free speed (5670 RPM). */
     private static final double kSpeedScaleForDirectionCheck = 1.0;
     private static final double kCruiseVelRPM = Neo2.kFreeSpeed.in(RPM) * 1.0 * kSpeedScaleForDirectionCheck;
-    /** Higher accel = faster ramp to cruise; 800 RPM/s → ~7 s to 5670 RPM (was 400). */
-    private static final double kMaxAccelRPMPerSec = 800 * kSpeedScaleForDirectionCheck;
+    /** Higher accel = faster ramp to cruise; 1600 RPM/s → ~3.5 s to 5670 RPM. */
+    private static final double kMaxAccelRPMPerSec = 1600 * kSpeedScaleForDirectionCheck;
     /** Looser tolerance so profile doesn't over-correct and cause back-and-forth oscillation. */
     private static final double kAllowedErrDegrees = 8;
     private static final int kSmartCurrentLimitAmps = 40;
