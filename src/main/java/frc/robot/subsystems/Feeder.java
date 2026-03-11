@@ -43,6 +43,7 @@ public class Feeder extends SubsystemBase {
     }
 
     private static final int kSmartCurrentLimitAmps = 40;
+    private static final int kSmartFreeCurrentLimitAmps = 35;
 
     private final SparkMax motor;
     private final SparkClosedLoopController closedLoop;
@@ -55,7 +56,8 @@ public class Feeder extends SubsystemBase {
             final SparkMaxConfig config = new SparkMaxConfig();
             config.idleMode(SparkBaseConfig.IdleMode.kCoast);
             config.inverted(false);
-            config.smartCurrentLimit(kSmartCurrentLimitAmps);
+            //config.smartCurrentLimit(kSmartCurrentLimitAmps);
+            config.smartCurrentLimit(kSmartCurrentLimitAmps, kSmartFreeCurrentLimitAmps);
             config.closedLoop
                 .p(6e-5)
                 .i(0)
