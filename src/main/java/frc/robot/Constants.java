@@ -89,6 +89,16 @@ public final class Constants {
         public static final double kFeedDurationSeconds = 0.35;
     }
 
+    /** Feed sequence: shooter at speed → feeder on at t=0.05s → floor on 0.15s later (t=0.20s). */
+    public static final class FeedSequence {
+        private FeedSequence() {}
+
+        /** Delay (s) from feed start until feeder and floor turn on (both together). */
+        public static final double kFeederDelaySeconds = 0;
+        /** Delay (s) from feed start until floor turns on (0 = same time as feeder). */
+        public static final double kFloorDelaySeconds = 0;
+    }
+
     /** REV Neo 2.0 (used on Feeder). Free speed ~5670 RPM at 12 V. */
     public static class Neo2 {
         public static final AngularVelocity kFreeSpeed = RPM.of(5670);

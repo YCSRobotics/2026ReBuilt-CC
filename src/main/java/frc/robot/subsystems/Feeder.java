@@ -1,32 +1,28 @@
 package frc.robot.subsystems;
 
+import static edu.wpi.first.units.Units.Amps;
 import static edu.wpi.first.units.Units.RPM;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
+import static edu.wpi.first.units.Units.Volts;
 
-import com.revrobotics.PersistMode;
-import com.revrobotics.RelativeEncoder;
-import com.revrobotics.ResetMode;
-import com.revrobotics.spark.SparkBase;
-import com.revrobotics.spark.SparkClosedLoopController;
-import com.revrobotics.spark.SparkLowLevel;
-import com.revrobotics.spark.SparkMax;
-import com.revrobotics.spark.config.SparkBaseConfig;
-import com.revrobotics.spark.config.SparkMaxConfig;
+import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
+import com.ctre.phoenix6.configs.MotorOutputConfigs;
+import com.ctre.phoenix6.configs.Slot0Configs;
+import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.VelocityVoltage;
+import com.ctre.phoenix6.controls.VoltageOut;
+import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.InvertedValue;
+import com.ctre.phoenix6.signals.NeutralModeValue;
 
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.Constants;
-import frc.robot.Constants.Neo2;
+import frc.robot.Constants.KrakenX60;
 import frc.robot.Ports;
 
-/**
- * Feeder subsystem: REV Neo 2.0 on SPARK Max.
- * Uses REVLib 2026 config API: SparkMax, SparkMaxConfig, getClosedLoopController(), setSetpoint(..., SparkBase.ControlType.kVelocity).
- * Config is built with separate statements (not fluent chain) so the variable stays SparkMaxConfig; then motor.configure(config, ResetMode, PersistMode).
- */
 public class Feeder extends SubsystemBase {
     public enum Speed {
         FEED(5000);
@@ -42,60 +38,61 @@ public class Feeder extends SubsystemBase {
         }
     }
 
-    private static final int kSmartCurrentLimitAmps = 40;
-
-    private final SparkMax motor;
-    private final SparkClosedLoopController closedLoop;
-    private final RelativeEncoder encoder;
+    private final TalonFX motor;
+    private final VelocityVoltage velocityRequest = new VelocityVoltage(0).withSlot(0);
+    private final VoltageOut voltageRequest = new VoltageOut(0);
 
     public Feeder() {
-        if (Constants.MechanismPresence.kFeeder()) {
-            motor = new SparkMax(Ports.kFeeder, SparkLowLevel.MotorType.kBrushless);
-            final double kV = 12.0 / Neo2.kFreeSpeed.in(RotationsPerSecond);
-            final SparkMaxConfig config = new SparkMaxConfig();
-            config.idleMode(SparkBaseConfig.IdleMode.kCoast);
-            config.inverted(false);
-            config.smartCurrentLimit(kSmartCurrentLimitAmps);
-            config.closedLoop
-                .p(6e-5)
-                .i(0)
-                .d(0)
-                .outputRange(-1, 1);
-            config.closedLoop.feedForward.kV(kV);
-            motor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
-            closedLoop = motor.getClosedLoopController();
-            encoder = motor.getEncoder();
-        } else {
-            motor = null;
-            closedLoop = null;
-            encoder = null;
-        }
+        motor = new TalonFX(Ports.kFeeder, Ports.kRoboRioCANBus);
+
+        final TalonFXConfiguration config = new TalonFXConfiguration()
+            .withMotorOutput(
+                new MotorOutputConfigs()
+                    .withInverted(InvertedValue.CounterClockwise_Positive)
+                    .withNeutralMode(NeutralModeValue.Coast)
+            )
+            .withCurrentLimits(
+                new CurrentLimitsConfigs()
+                    .withStatorCurrentLimit(Amps.of(120))
+                    .withStatorCurrentLimitEnable(true)
+                    .withSupplyCurrentLimit(Amps.of(50))
+                    .withSupplyCurrentLimitEnable(true)
+            )
+            .withSlot0(
+                new Slot0Configs()
+                    .withKP(1)
+                    .withKI(0)
+                    .withKD(0)
+                    .withKV(12.0 / KrakenX60.kFreeSpeed.in(RotationsPerSecond)) // 12 volts when requesting max RPS
+            );
+
+        motor.getConfigurator().apply(config);
         SmartDashboard.putData(this);
     }
 
     public void set(Speed speed) {
-        if (closedLoop != null) {
-            closedLoop.setSetpoint(speed.angularVelocity().in(RPM), SparkBase.ControlType.kVelocity);
-        }
+        motor.setControl(
+            velocityRequest
+                .withVelocity(speed.angularVelocity())
+        );
     }
 
     public void setPercentOutput(double percentOutput) {
-        if (motor != null) motor.set(percentOutput);
+        motor.setControl(
+            voltageRequest
+                .withOutput(Volts.of(percentOutput * 12.0))
+        );
     }
 
-    /** Feed using full duty cycle so motor always gets max power (velocity control was not pushing). */
     public Command feedCommand() {
-        return startEnd(() -> setPercentOutput(0.8), () -> setPercentOutput(0));
+        return startEnd(() -> set(Speed.FEED), () -> setPercentOutput(0));
     }
 
     @Override
     public void initSendable(SendableBuilder builder) {
         builder.addStringProperty("Command", () -> getCurrentCommand() != null ? getCurrentCommand().getName() : "null", null);
-        builder.addBooleanProperty("Present", () -> motor != null, null);
-        if (motor != null && encoder != null) {
-            builder.addDoubleProperty("RPM", encoder::getVelocity, null);
-            builder.addDoubleProperty("Output Current", motor::getOutputCurrent, null);
-            builder.addDoubleProperty("Applied Output", motor::getAppliedOutput, null);
-        }
+        builder.addDoubleProperty("RPM", () -> motor.getVelocity().getValue().in(RPM), null);
+        builder.addDoubleProperty("Stator Current", () -> motor.getStatorCurrent().getValue().in(Amps), null);
+        builder.addDoubleProperty("Supply Current", () -> motor.getSupplyCurrent().getValue().in(Amps), null);
     }
 }
