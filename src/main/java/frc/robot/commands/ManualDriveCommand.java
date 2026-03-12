@@ -89,11 +89,16 @@ public class ManualDriveCommand extends Command {
         setLockedHeading(headingInOperatorPerspective);
     }
 
+    /**
+     * Only lock heading when the user had been rotating and then released the stick.
+     * If they never touch the right stick (e.g. only left stick Y forward), we do not lock,
+     * so the robot drives straight with no heading-hold PID and no pull to one side from bad pose.
+     */
     private void lockHeadingIfRotationStopped(ManualDriveInput input) {
         if (input.hasRotation()) {
             headingLockStopwatch.reset();
             lockedHeading = Optional.empty();
-        } else {
+        } else if (previousInput.hasRotation()) {
             headingLockStopwatch.startIfNotRunning();
             if (headingLockStopwatch.elapsedTime().gt(kHeadingLockDelay)) {
                 setLockedHeadingToCurrent();

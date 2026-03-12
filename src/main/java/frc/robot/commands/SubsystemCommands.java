@@ -10,6 +10,7 @@ import frc.robot.subsystems.Hanger;
 import frc.robot.subsystems.Hood;
 import frc.robot.subsystems.IntakePivot;
 import frc.robot.subsystems.IntakeRollers;
+import frc.robot.Constants;
 import frc.robot.subsystems.Shooter;
 import frc.robot.subsystems.Swerve;
 
@@ -93,13 +94,16 @@ public final class SubsystemCommands {
             .handleInterrupt(() -> shooter.stop());
     }
 
-    /** Feeder + floor only; intake agitate omitted for testing (pivot not ready). */
+    /** Feeder + floor; timing in Constants.FeedSequence (shooter at speed → feeder 0.05s, floor at kFloorDelaySeconds). */
     private Command feed() {
+        final double feederDelay = Constants.FeedSequence.kFeederDelaySeconds;
+        final double floorDelay = Constants.FeedSequence.kFloorDelaySeconds;
+        final double floorWait = Math.max(0, floorDelay - feederDelay);
         return Commands.sequence(
-            Commands.waitSeconds(0.25),
+            Commands.waitSeconds(feederDelay),
             Commands.parallel(
                 feeder.feedCommand(),
-                Commands.waitSeconds(2).andThen(floor.feedCommand())
+                Commands.waitSeconds(floorWait).andThen(floor.feedCommand())
             )
         );
     }

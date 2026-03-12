@@ -23,7 +23,7 @@ import frc.robot.Ports;
 public class Floor extends SubsystemBase {
     public enum Speed {
         STOP(0),
-        FEED(0.83);
+        FEED(0.55);  // ~3100 RPM equivalent (Neo 2 free 5670 RPM)
 
         private final double percentOutput;
 
