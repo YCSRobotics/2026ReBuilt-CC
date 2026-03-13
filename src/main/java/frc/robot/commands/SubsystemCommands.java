@@ -8,11 +8,12 @@ import frc.robot.subsystems.Feeder;
 import frc.robot.subsystems.Floor;
 import frc.robot.subsystems.Hanger;
 import frc.robot.subsystems.Hood;
+import frc.robot.Constants;
 import frc.robot.subsystems.IntakePivot;
 import frc.robot.subsystems.IntakeRollers;
-import frc.robot.Constants;
 import frc.robot.subsystems.Shooter;
 import frc.robot.subsystems.Swerve;
+import frc.robot.commands.IntakeCommands;
 
 public final class SubsystemCommands {
     private final Swerve swerve;
@@ -94,17 +95,12 @@ public final class SubsystemCommands {
             .handleInterrupt(() -> shooter.stop());
     }
 
-    /** Feeder + floor; timing in Constants.FeedSequence (shooter at speed → feeder 0.05s, floor at kFloorDelaySeconds). */
+    /** Feeder and floor start together; agitate starts after a short delay; all stop when command ends. */
     private Command feed() {
-        final double feederDelay = Constants.FeedSequence.kFeederDelaySeconds;
-        final double floorDelay = Constants.FeedSequence.kFloorDelaySeconds;
-        final double floorWait = Math.max(0, floorDelay - feederDelay);
-        return Commands.sequence(
-            Commands.waitSeconds(feederDelay),
-            Commands.parallel(
-                feeder.feedCommand(),
-                Commands.waitSeconds(floorWait).andThen(floor.feedCommand())
-            )
+        return Commands.parallel(
+            feeder.feedCommand(),
+            floor.feedCommand(),
+            Commands.waitSeconds(0.125).andThen(IntakeCommands.agitateCommand(intakePivot, intakeRollers))
         );
     }
 }

@@ -130,9 +130,7 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
                         ? kRedAlliancePerspectiveRotation
                         : kBlueAlliancePerspectiveRotation
                 );
-                if (!m_hasAppliedOperatorPerspective) {
-                    seedFieldCentric();
-                }
+                // No automatic seed: field-centric uses odometry pose as-is. Driver can press Back to re-seed.
                 m_hasAppliedOperatorPerspective = true;
             });
         }
