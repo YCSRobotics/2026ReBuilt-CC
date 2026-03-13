@@ -22,9 +22,11 @@ import frc.util.Stopwatch;
 /**
  * Teleop manual drive command for the swerve drivetrain.
  *
- * Handles field-centric driving with manual rotation input and
- * heading-hold behavior after a short delay once rotation input
- * returns to zero.
+ * Default: robot-centric — left stick forward = robot forward (no field reference).
+ * Press Back to switch to field-centric — forward = toward opposing alliance wall
+ * (so pressing forward can drive the robot backward if it is facing your own wall).
+ * Press Back again to return to robot-centric.
+ * In field-centric mode, heading-hold runs after rotation stick returns to zero.
  */
 public class ManualDriveCommand extends Command {
     private enum State {
@@ -38,6 +40,10 @@ public class ManualDriveCommand extends Command {
     private final Swerve swerve;
     private final DriveInputSmoother inputSmoother;
     private final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
+
+    private final SwerveRequest.RobotCentric robotCentricRequest = new SwerveRequest.RobotCentric()
+        .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
+        .withSteerRequestType(SteerRequestType.MotionMagicExpo);
 
     private final SwerveRequest.FieldCentric fieldCentricRequest = new SwerveRequest.FieldCentric()
         .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
@@ -57,6 +63,9 @@ public class ManualDriveCommand extends Command {
     private Stopwatch headingLockStopwatch = new Stopwatch();
     private ManualDriveInput previousInput = new ManualDriveInput();
 
+    /** Default false: robot-centric. True after Back: field-centric (forward = toward opposing wall). */
+    private boolean useFieldCentric = false;
+
     public ManualDriveCommand(
         Swerve swerve,
         DoubleSupplier forwardInput,
@@ -68,9 +77,22 @@ public class ManualDriveCommand extends Command {
         addRequirements(swerve);
     }
 
-    public void seedFieldCentric() {
-        initialize();
-        swerve.seedFieldCentric();
+    /**
+     * Toggles between robot-centric and field-centric. When switching to field-centric,
+     * seeds so forward = toward opposing alliance wall (robot may drive "backward" if facing own wall).
+     */
+    public void toggleFieldCentric() {
+        useFieldCentric = !useFieldCentric;
+        if (useFieldCentric) {
+            initialize();
+            swerve.seedFieldCentric();
+        } else {
+            lockedHeading = Optional.empty();
+        }
+    }
+
+    public boolean isFieldCentric() {
+        return useFieldCentric;
     }
 
     public void setLockedHeading(Rotation2d heading) {
@@ -131,21 +153,41 @@ public class ManualDriveCommand extends Command {
                 swerve.setControl(idleRequest);
                 break;
             case DRIVING_WITH_MANUAL_ROTATION:
-                lockHeadingIfRotationStopped(input);
-                swerve.setControl(
-                    fieldCentricRequest
-                        .withVelocityX(Driving.kMaxSpeed.times(input.forward))
-                        .withVelocityY(Driving.kMaxSpeed.times(input.left))
-                        .withRotationalRate(Driving.kMaxRotationalRate.times(input.rotation))
-                );
+                if (useFieldCentric) {
+                    lockHeadingIfRotationStopped(input);
+                }
+                if (useFieldCentric) {
+                    swerve.setControl(
+                        fieldCentricRequest
+                            .withVelocityX(Driving.kMaxSpeed.times(input.forward))
+                            .withVelocityY(Driving.kMaxSpeed.times(input.left))
+                            .withRotationalRate(Driving.kMaxRotationalRate.times(input.rotation))
+                    );
+                } else {
+                    swerve.setControl(
+                        robotCentricRequest
+                            .withVelocityX(Driving.kMaxSpeed.times(input.forward))
+                            .withVelocityY(Driving.kMaxSpeed.times(input.left))
+                            .withRotationalRate(Driving.kMaxRotationalRate.times(input.rotation))
+                    );
+                }
                 break;
             case DRIVING_WITH_LOCKED_HEADING:
-                swerve.setControl(
-                    fieldCentricFacingAngleRequest
-                        .withVelocityX(Driving.kMaxSpeed.times(input.forward))
-                        .withVelocityY(Driving.kMaxSpeed.times(input.left))
-                        .withTargetDirection(lockedHeading.get())
-                );
+                if (useFieldCentric) {
+                    swerve.setControl(
+                        fieldCentricFacingAngleRequest
+                            .withVelocityX(Driving.kMaxSpeed.times(input.forward))
+                            .withVelocityY(Driving.kMaxSpeed.times(input.left))
+                            .withTargetDirection(lockedHeading.get())
+                    );
+                } else {
+                    swerve.setControl(
+                        robotCentricRequest
+                            .withVelocityX(Driving.kMaxSpeed.times(input.forward))
+                            .withVelocityY(Driving.kMaxSpeed.times(input.left))
+                            .withRotationalRate(Driving.kMaxRotationalRate.times(input.rotation))
+                    );
+                }
                 break;
         }
     }

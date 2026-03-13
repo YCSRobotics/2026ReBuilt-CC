@@ -1,5 +1,6 @@
 package frc.robot.subsystems;
 
+import static edu.wpi.first.units.Units.Inches;
 import static edu.wpi.first.units.Units.Meters;
 
 import java.util.Optional;
@@ -10,22 +11,32 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 import frc.robot.LimelightHelpers;
 import frc.robot.LimelightHelpers.PoseEstimate;
+import frc.robot.LimelightHelpers.RawFiducial;
 
 public class Limelight extends SubsystemBase {
+    private static final double kNoTargetSentinel = -1.0;
+
     private final String name;
     private final NetworkTable telemetryTable;
     private final StructPublisher<Pose2d> posePublisher;
+    private final NetworkTableEntry distToTagRobotM;
+    private final NetworkTableEntry distToTagCameraM;
+    private final NetworkTableEntry distToTagRobotIn;
 
     public Limelight(String name) {
         this.name = name;
         this.telemetryTable = NetworkTableInstance.getDefault().getTable("SmartDashboard/" + name);
         this.posePublisher = telemetryTable.getStructTopic("Estimated Robot Pose", Pose2d.struct).publish();
+        this.distToTagRobotM = telemetryTable.getEntry("Distance to Tag - Robot (m)");
+        this.distToTagCameraM = telemetryTable.getEntry("Distance to Tag - Camera (m)");
+        this.distToTagRobotIn = telemetryTable.getEntry("Distance to Tag - Robot (inches)");
         
         // Configure camera pose relative to robot center
         LimelightHelpers.setCameraPose_RobotSpace(
@@ -37,6 +48,27 @@ public class Limelight extends SubsystemBase {
             Constants.Limelight.kCameraPitchDegrees,
             Constants.Limelight.kCameraYawDegrees
         );
+    }
+
+    @Override
+    public void periodic() {
+        // Publish vision-based distance to AprilTag for dashboard and Elastic (always publish so keys exist in NT)
+        final RawFiducial[] fiducials = LimelightHelpers.getRawFiducials(name);
+        if (fiducials != null && fiducials.length > 0) {
+            RawFiducial closest = fiducials[0];
+            for (int i = 1; i < fiducials.length; i++) {
+                if (fiducials[i].distToRobot < closest.distToRobot) {
+                    closest = fiducials[i];
+                }
+            }
+            distToTagRobotM.setDouble(closest.distToRobot);
+            distToTagCameraM.setDouble(closest.distToCamera);
+            distToTagRobotIn.setDouble(Meters.of(closest.distToRobot).in(Inches));
+        } else {
+            distToTagRobotM.setDouble(kNoTargetSentinel);
+            distToTagCameraM.setDouble(kNoTargetSentinel);
+            distToTagRobotIn.setDouble(kNoTargetSentinel);
+        }
     }
 
     public String getName() {

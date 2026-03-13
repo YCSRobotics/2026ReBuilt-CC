@@ -4,11 +4,15 @@
 
 package frc.robot;
 
+import static edu.wpi.first.units.Units.Inches;
+import static edu.wpi.first.units.Units.Meters;
 import static edu.wpi.first.units.Units.MetersPerSecond;
 
 import java.util.Optional;
 
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -21,6 +25,7 @@ import frc.robot.commands.AimToAprilTagCommand;
 import frc.robot.commands.IntakeCommands;
 import frc.robot.commands.ManualDriveCommand;
 import frc.robot.commands.SubsystemCommands;
+import frc.robot.Landmarks;
 import frc.robot.subsystems.Feeder;
 import frc.robot.subsystems.Floor;
 // import frc.robot.subsystems.Hanger;
@@ -32,6 +37,7 @@ import frc.robot.subsystems.Limelight;
 import frc.robot.subsystems.Shooter;
 import frc.robot.subsystems.Swerve;
 import frc.util.SwerveTelemetry;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 /**
  * This class is where the bulk of the robot should be declared. Since Command-based is a
@@ -167,7 +173,7 @@ public class RobotContainer {
             () -> -driver.getRightX()
         );
         swerve.setDefaultCommand(manualDriveCommand);
-        driver.back().onTrue(Commands.runOnce(() -> manualDriveCommand.seedFieldCentric()));
+        driver.back().onTrue(Commands.runOnce(() -> manualDriveCommand.toggleFieldCentric()));
         
         // Aim to AprilTag - rotation only, no field/hub (bringup)
         final AimToAprilTagCommand aimToTagCommand = new AimToAprilTagCommand(swerve, limelight);
@@ -197,6 +203,12 @@ public class RobotContainer {
     private Command updateVisionCommand() {
         return limelight.run(() -> {
             final Pose2d currentRobotPose = swerve.getState().Pose;
+            // Publish robot-to-hub distance for Elastic / calibration (RPM vs distance vs hood)
+            final Translation2d robotPosition = currentRobotPose.getTranslation();
+            final Translation2d hubPosition = Landmarks.hubPosition();
+            final Distance distanceToHub = Meters.of(robotPosition.getDistance(hubPosition));
+            SmartDashboard.putNumber("Distance to Hub (inches)", distanceToHub.in(Inches));
+
             final Optional<Limelight.Measurement> measurement = limelight.getMeasurement(currentRobotPose);
             measurement.ifPresent(m -> {
                 swerve.addVisionMeasurement(

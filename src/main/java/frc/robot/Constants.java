@@ -106,17 +106,17 @@ public final class Constants {
 
     public static class Limelight {
         // Camera pose relative to robot center (robot coordinate system)
-        // Forward: positive = forward from robot center (meters)
+        // Forward: positive = toward front bumper from robot center (meters)
         // Side: positive = right side of robot (meters)
         // Up: positive = upward from robot center (meters)
         // Roll, Pitch, Yaw: rotation angles in degrees
         
-        public static final Distance kCameraForwardOffset = Meters.of(0.275);  // Forward from robot center
-        public static final Distance kCameraSideOffset = Meters.of(0.335);     // Right side (positive) or left side (negative)
-        public static final Distance kCameraUpOffset = Meters.of(0.48);        // Height above robot center
+        public static final Distance kCameraForwardOffset = Meters.of(-0.275);  // Camera is 0.275 m toward back from robot center
+        public static final Distance kCameraSideOffset = Meters.of(0.0);        // Centered left/right
+        public static final Distance kCameraUpOffset = Meters.of(0.66);         // Height above robot center
         
         public static final double kCameraRollDegrees = 0.0;   // Rotation around forward axis
-        public static final double kCameraPitchDegrees = 0.0;  // Rotation around side axis (positive = camera pointing up)
+        public static final double kCameraPitchDegrees = 18;   // Rotation around side axis (positive = camera pointing up)
         public static final double kCameraYawDegrees = 0.0;    // Rotation around vertical axis (positive = camera pointing right)
     }
 }
