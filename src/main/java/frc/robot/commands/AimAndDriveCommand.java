@@ -12,6 +12,8 @@ import com.ctre.phoenix6.swerve.SwerveRequest.ForwardPerspectiveValue;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants.Driving;
 import frc.robot.Landmarks;
@@ -55,12 +57,19 @@ public class AimAndDriveCommand extends Command {
         return GeometryUtil.isNear(targetHeading, currentHeadingInOperatorPerspective, kAimTolerance);
     }
 
+    /**
+     * Direction to hub in operator perspective (0° = operator forward).
+     * Converts from getAngle() frame (0° = +X) to operator frame (0° = forward) so the
+     * controller does not rotate the robot 90° when the hub is straight ahead.
+     */
     private Rotation2d getDirectionToHub() {
         final Translation2d hubPosition = Landmarks.hubPosition();
         final Translation2d robotPosition = swerve.getState().Pose.getTranslation();
         final Rotation2d hubDirectionInBlueAlliancePerspective = hubPosition.minus(robotPosition).getAngle();
-        final Rotation2d hubDirectionInOperatorPerspective = hubDirectionInBlueAlliancePerspective.rotateBy(swerve.getOperatorForwardDirection());
-        return hubDirectionInOperatorPerspective;
+        if (DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Blue) {
+            return hubDirectionInBlueAlliancePerspective.rotateBy(Rotation2d.fromDegrees(-90));
+        }
+        return hubDirectionInBlueAlliancePerspective.rotateBy(swerve.getOperatorForwardDirection());
     }
 
     @Override
