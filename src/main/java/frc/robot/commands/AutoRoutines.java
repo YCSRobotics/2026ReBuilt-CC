@@ -4,11 +4,6 @@
 
 package frc.robot.commands;
 
-import static frc.robot.generated.ChoreoTraj.OutpostAndDepotTrajectory$0;
-import static frc.robot.generated.ChoreoTraj.OutpostAndDepotTrajectory$1;
-import static frc.robot.generated.ChoreoTraj.OutpostAndDepotTrajectory$2;
-import static frc.robot.generated.ChoreoTraj.OutpostAndDepotTrajectory$3;
-
 import choreo.auto.AutoChooser;
 import choreo.auto.AutoFactory;
 import choreo.auto.AutoRoutine;
@@ -78,10 +73,11 @@ public final class AutoRoutines {
 
     private AutoRoutine outpostAndDepotRoutine() {
         final AutoRoutine routine = autoFactory.newRoutine("Outpost and Depot");
-        final AutoTrajectory startToOutpost = OutpostAndDepotTrajectory$0.asAutoTraj(routine);
-        final AutoTrajectory outpostToDepot = OutpostAndDepotTrajectory$1.asAutoTraj(routine);
-        final AutoTrajectory depotToShootingPose = OutpostAndDepotTrajectory$2.asAutoTraj(routine);
-        final AutoTrajectory shootingPoseToTower = OutpostAndDepotTrajectory$3.asAutoTraj(routine);
+        // Load segments by name from deploy/choreo/OutpostAndDepotTrajectory.traj (no codegen required)
+        final AutoTrajectory startToOutpost = routine.trajectory("OutpostAndDepotTrajectory", 0);
+        final AutoTrajectory outpostToDepot = routine.trajectory("OutpostAndDepotTrajectory", 1);
+        final AutoTrajectory depotToShootingPose = routine.trajectory("OutpostAndDepotTrajectory", 2);
+        final AutoTrajectory shootingPoseToTower = routine.trajectory("OutpostAndDepotTrajectory", 3);
 
         routine.active().onTrue(
             Commands.sequence(
