@@ -61,14 +61,14 @@ public class IntakePivot extends SubsystemBase {
     /** Dampens oscillation when holding position after homing (no trigger pressed). */
     private static final double kD = 1e-4;
     private static final double kIz = 0;
-    /** Clamp 75%: allows faster tracking of profile; was 50% when motion was conservative. */
-    private static final double kMaxOutput = 0.75;
-    private static final double kMinOutput = -0.75;
-    /** Scale 1.0 = full profile speed; reduction factor 1.0 = cruise at free speed (5670 RPM). */
-    private static final double kSpeedScaleForDirectionCheck = 1.0;
+    /** Clamp 85%: allows faster tracking of profile. */
+    private static final double kMaxOutput = 0.85;
+    private static final double kMinOutput = -0.85;
+    /** Scale 1.0 = full profile speed; >1 = faster cruise and accel. */
+    private static final double kSpeedScaleForDirectionCheck = 1.25;
     private static final double kCruiseVelRPM = Neo2.kFreeSpeed.in(RPM) * 1.0 * kSpeedScaleForDirectionCheck;
-    /** Higher accel = faster ramp to cruise; 1600 RPM/s → ~3.5 s to 5670 RPM. */
-    private static final double kMaxAccelRPMPerSec = 1600 * kSpeedScaleForDirectionCheck;
+    /** Higher accel = faster ramp to cruise. */
+    private static final double kMaxAccelRPMPerSec = 2000 * kSpeedScaleForDirectionCheck;
     /** Looser tolerance so profile doesn't over-correct and cause back-and-forth oscillation. */
     private static final double kAllowedErrDegrees = 8;
     private static final int kSmartCurrentLimitAmps = 40;
