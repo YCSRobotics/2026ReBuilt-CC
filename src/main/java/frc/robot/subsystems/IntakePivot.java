@@ -65,7 +65,7 @@ public class IntakePivot extends SubsystemBase {
     private static final double kMaxOutput = 0.85;
     private static final double kMinOutput = -0.85;
     /** Scale 1.0 = full profile speed; >1 = faster cruise and accel. */
-    private static final double kSpeedScaleForDirectionCheck = 1.25;
+    private static final double kSpeedScaleForDirectionCheck = 1.5;
     private static final double kCruiseVelRPM = Neo2.kFreeSpeed.in(RPM) * 1.0 * kSpeedScaleForDirectionCheck;
     /** Higher accel = faster ramp to cruise. */
     private static final double kMaxAccelRPMPerSec = 2000 * kSpeedScaleForDirectionCheck;
