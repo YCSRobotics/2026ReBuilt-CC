@@ -21,7 +21,6 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.Driving;
 // import frc.robot.commands.AutoRoutines;
 import frc.robot.commands.AimAndDriveCommand;
-import frc.robot.commands.AimToAprilTagCommand;
 import frc.robot.commands.IntakeCommands;
 import frc.robot.commands.ManualDriveCommand;
 import frc.robot.commands.SubsystemCommands;
@@ -108,11 +107,13 @@ public class RobotContainer {
                 : hanger.homingCommand());
         RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop()).onTrue(onEnableCommand);
 
-        driver.rightTrigger().whileTrue(subsystemCommands.aimAndShoot());
-        // Manual shoot: hold right bumper → spin up shooter (dashboard RPM), then feed; release → stop shooter.
-        driver.rightBumper().whileTrue(subsystemCommands.shootManually());
+        // Operator: aim-and-shoot and manual shoot (same assignments as driver had).
+        operator.rightTrigger().whileTrue(subsystemCommands.aimAndShoot());
+        operator.rightBumper().whileTrue(subsystemCommands.shootManually());
+        operator.povUp().onTrue(hanger.positionCommand(Hanger.Position.HANGING));
+        operator.povDown().onTrue(hanger.positionCommand(Hanger.Position.HUNG));
 
-        // Driver left trigger: pivot to INTAKE + run rollers while held; release = STOWED + stop rollers.
+        // Driver: intake only (pivot + rollers on left trigger, stow on left bumper).
         if (Constants.MechanismPresence.kIntakePivot()) {
             driver.leftTrigger().debounce(0.15).whileTrue(
                 Commands.startEnd(
@@ -127,8 +128,6 @@ public class RobotContainer {
                     intakePivot, intakeRollers));
             driver.leftBumper().onTrue(intakePivot.runOnce(() -> intakePivot.set(IntakePivot.Position.STOWED)));
         }
-        driver.povUp().onTrue(hanger.positionCommand(Hanger.Position.HANGING));
-        driver.povDown().onTrue(hanger.positionCommand(Hanger.Position.HUNG));
     }
 
     /**
@@ -174,12 +173,8 @@ public class RobotContainer {
         );
         swerve.setDefaultCommand(manualDriveCommand);
         driver.back().onTrue(Commands.runOnce(() -> manualDriveCommand.toggleFieldCentric()));
-        
-        // Aim to AprilTag - rotation only, no field/hub (bringup)
-        final AimToAprilTagCommand aimToTagCommand = new AimToAprilTagCommand(swerve, limelight);
-        operator.rightTrigger().or(driver.rightTrigger()).whileTrue(aimToTagCommand);
 
-        // Aim to hub - rotation only (bringup only). Manual shoot uses right bumper in both modes.
+        // Aim to hub - rotation only (bringup only).
         final AimAndDriveCommand aimCommand = new AimAndDriveCommand(swerve);
         if (Constants.kBringupMode) {
             driver.a().whileTrue(aimCommand);  // Driver A = aim to hub when in bringup
