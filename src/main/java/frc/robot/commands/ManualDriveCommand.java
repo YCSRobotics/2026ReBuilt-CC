@@ -1,8 +1,5 @@
 package frc.robot.commands;
 
-import static edu.wpi.first.units.Units.Seconds;
-
-import java.util.Optional;
 import java.util.function.DoubleSupplier;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
@@ -10,14 +7,11 @@ import com.ctre.phoenix6.swerve.SwerveModule.SteerRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.ctre.phoenix6.swerve.SwerveRequest.ForwardPerspectiveValue;
 
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.units.measure.Time;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants.Driving;
 import frc.robot.subsystems.Swerve;
 import frc.util.DriveInputSmoother;
 import frc.util.ManualDriveInput;
-import frc.util.Stopwatch;
 
 /**
  * Teleop manual drive command for the swerve drivetrain.
@@ -26,16 +20,12 @@ import frc.util.Stopwatch;
  * Press Back to switch to field-centric — forward = toward opposing alliance wall
  * (so pressing forward can drive the robot backward if it is facing your own wall).
  * Press Back again to return to robot-centric.
- * In field-centric mode, heading-hold runs after rotation stick returns to zero.
  */
 public class ManualDriveCommand extends Command {
     private enum State {
         IDLING,
-        DRIVING_WITH_MANUAL_ROTATION,
-        DRIVING_WITH_LOCKED_HEADING
+        DRIVING
     }
-
-    private static final Time kHeadingLockDelay = Seconds.of(0.25); // time to wait before locking heading
 
     private final Swerve swerve;
     private final DriveInputSmoother inputSmoother;
@@ -50,17 +40,7 @@ public class ManualDriveCommand extends Command {
         .withSteerRequestType(SteerRequestType.MotionMagicExpo)
         .withForwardPerspective(ForwardPerspectiveValue.OperatorPerspective);
 
-    private final SwerveRequest.FieldCentricFacingAngle fieldCentricFacingAngleRequest = new SwerveRequest.FieldCentricFacingAngle()
-        .withRotationalDeadband(Driving.kPIDRotationDeadband)
-        .withMaxAbsRotationalRate(Driving.kMaxRotationalRate)
-        .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
-        .withSteerRequestType(SteerRequestType.MotionMagicExpo)
-        .withForwardPerspective(ForwardPerspectiveValue.OperatorPerspective)
-        .withHeadingPID(5, 0, 0);
-
     private State currentState = State.IDLING;
-    private Optional<Rotation2d> lockedHeading = Optional.empty();
-    private Stopwatch headingLockStopwatch = new Stopwatch();
     private ManualDriveInput previousInput = new ManualDriveInput();
 
     /** Default false: robot-centric. True after Back: field-centric (forward = toward opposing wall). */
@@ -86,8 +66,6 @@ public class ManualDriveCommand extends Command {
         if (useFieldCentric) {
             initialize();
             swerve.seedFieldCentric();
-        } else {
-            lockedHeading = Optional.empty();
         }
     }
 
@@ -95,54 +73,17 @@ public class ManualDriveCommand extends Command {
         return useFieldCentric;
     }
 
-    public void setLockedHeading(Rotation2d heading) {
-        lockedHeading = Optional.of(heading);
-        currentState = State.DRIVING_WITH_LOCKED_HEADING;
-    }
-
-    /** Clears the snap-to heading so the robot stops rotating toward it (e.g. when button released). */
-    public void clearLockedHeading() {
-        lockedHeading = Optional.empty();
-    }
-
-    private void setLockedHeadingToCurrent() {
-        final Rotation2d headingInBlueAlliancePerspective = swerve.getState().Pose.getRotation();
-        final Rotation2d headingInOperatorPerspective = headingInBlueAlliancePerspective.rotateBy(swerve.getOperatorForwardDirection());
-        setLockedHeading(headingInOperatorPerspective);
-    }
-
-    /**
-     * Only lock heading when the user had been rotating and then released the stick.
-     * If they never touch the right stick (e.g. only left stick Y forward), we do not lock,
-     * so the robot drives straight with no heading-hold PID and no pull to one side from bad pose.
-     */
-    private void lockHeadingIfRotationStopped(ManualDriveInput input) {
-        if (input.hasRotation()) {
-            headingLockStopwatch.reset();
-            lockedHeading = Optional.empty();
-        } else if (previousInput.hasRotation()) {
-            headingLockStopwatch.startIfNotRunning();
-            if (headingLockStopwatch.elapsedTime().gt(kHeadingLockDelay)) {
-                setLockedHeadingToCurrent();
-            }
-        }
-    }
-
     @Override
     public void initialize() {
         currentState = State.IDLING;
-        lockedHeading = Optional.empty();
-        headingLockStopwatch.reset();
         previousInput = new ManualDriveInput();
     }
 
     @Override
     public void execute() {
         final ManualDriveInput input = inputSmoother.getSmoothedInput();
-        if (input.hasRotation()) {
-            currentState = State.DRIVING_WITH_MANUAL_ROTATION;
-        } else if (input.hasTranslation()) {
-            currentState = lockedHeading.isPresent() ? State.DRIVING_WITH_LOCKED_HEADING : State.DRIVING_WITH_MANUAL_ROTATION;
+        if (input.hasRotation() || input.hasTranslation()) {
+            currentState = State.DRIVING;
         } else if (previousInput.hasRotation() || previousInput.hasTranslation()) {
             currentState = State.IDLING;
         }
@@ -152,33 +93,13 @@ public class ManualDriveCommand extends Command {
             case IDLING:
                 swerve.setControl(idleRequest);
                 break;
-            case DRIVING_WITH_MANUAL_ROTATION:
-                if (useFieldCentric) {
-                    lockHeadingIfRotationStopped(input);
-                }
+            case DRIVING:
                 if (useFieldCentric) {
                     swerve.setControl(
                         fieldCentricRequest
                             .withVelocityX(Driving.kMaxSpeed.times(input.forward))
                             .withVelocityY(Driving.kMaxSpeed.times(input.left))
                             .withRotationalRate(Driving.kMaxRotationalRate.times(input.rotation))
-                    );
-                } else {
-                    swerve.setControl(
-                        robotCentricRequest
-                            .withVelocityX(Driving.kMaxSpeed.times(input.forward))
-                            .withVelocityY(Driving.kMaxSpeed.times(input.left))
-                            .withRotationalRate(Driving.kMaxRotationalRate.times(input.rotation))
-                    );
-                }
-                break;
-            case DRIVING_WITH_LOCKED_HEADING:
-                if (useFieldCentric) {
-                    swerve.setControl(
-                        fieldCentricFacingAngleRequest
-                            .withVelocityX(Driving.kMaxSpeed.times(input.forward))
-                            .withVelocityY(Driving.kMaxSpeed.times(input.left))
-                            .withTargetDirection(lockedHeading.get())
                     );
                 } else {
                     swerve.setControl(
