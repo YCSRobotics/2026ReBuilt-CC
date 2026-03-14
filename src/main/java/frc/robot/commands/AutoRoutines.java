@@ -71,6 +71,7 @@ public final class AutoRoutines {
 
     public void configure() {
         autoChooser.addRoutine("Outpost and Depot", this::outpostAndDepotRoutine);
+        autoChooser.addRoutine("Bump to Collect Fuel", this::bumpToCollectFuelRoutine);
         SmartDashboard.putData("Auto Chooser", autoChooser);
         RobotModeTriggers.autonomous().whileTrue(autoChooser.selectedCommandScheduler());
     }
@@ -89,7 +90,7 @@ public final class AutoRoutines {
             )
         );
 
-        routine.observe(hanger::isHomed).onTrue(
+        routine.active().onTrue(
             Commands.sequence(
                 Commands.waitSeconds(0.5),
                 intakePivot.runOnce(() -> intakePivot.set(IntakePivot.Position.INTAKE))
@@ -117,8 +118,22 @@ public final class AutoRoutines {
         );
 
         shootingPoseToTower.active().whileTrue(limelight.idle());
-        shootingPoseToTower.active().onTrue(hanger.positionCommand(Hanger.Position.HANGING));
-        shootingPoseToTower.done().onTrue(hanger.positionCommand(Hanger.Position.HUNG));
+
+        return routine;
+    }
+
+    /** Bump path: start at Bump → pre-bump → crest → landing bump → forward to balls for collect fuel. */
+    private AutoRoutine bumpToCollectFuelRoutine() {
+        final AutoRoutine routine = autoFactory.newRoutine("Bump to Collect Fuel");
+        // Load trajectory by name from deploy/choreo/NewPath.traj (no codegen required)
+        final AutoTrajectory bumpToBalls = routine.trajectory("NewPath");
+
+        routine.active().onTrue(
+            Commands.sequence(
+                bumpToBalls.resetOdometry(),
+                bumpToBalls.cmd()
+            )
+        );
 
         return routine;
     }
