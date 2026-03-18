@@ -12,10 +12,13 @@ import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
@@ -68,12 +71,51 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     public AutoFactory createAutoFactory(TrajectoryLogger<SwerveSample> trajLogger) {
         return new AutoFactory(
             () -> getState().Pose,
-            this::resetPose,
+            this::resetPoseAndGyro,
             this::followPath,
             true,
             this,
             trajLogger
         );
+    }
+
+    /**
+     * Resets the robot pose and sets the Pigeon 2 yaw to match the pose heading.
+     * Use when the robot is at a known pose (e.g. practice start); otherwise the gyro
+     * (e.g. 0° at power-up) would overwrite the reset heading on the next odometry update.
+     */
+    public void resetPoseAndGyro(Pose2d pose) {
+        resetPose(pose);
+        getPigeon2().setYaw(pose.getRotation().getDegrees());
+    }
+
+    /**
+     * Sets the current pose heading to the alliance "forward" direction (0° Blue, 180° Red)
+     * while keeping the current position. Use when the robot is physically facing the
+     * opposing alliance wall so field-centric and aim-to-shoot use the correct reference.
+     */
+    public void resetHeadingToAllianceForward() {
+        final Pose2d current = getState().Pose;
+        final Translation2d position = current.getTranslation();
+        final Rotation2d allianceForward = DriverStation.getAlliance()
+            .orElse(Alliance.Blue) == Alliance.Red
+            ? kRedAlliancePerspectiveRotation
+            : kBlueAlliancePerspectiveRotation;
+        resetPose(new Pose2d(position, allianceForward));
+        getPigeon2().setYaw(allianceForward.getDegrees());
+    }
+
+    /**
+     * True when chassis translational and rotational speed are below a small threshold.
+     * Used to ensure the robot is stopped before shooting for consistency.
+     */
+    public boolean isStopped() {
+        final ChassisSpeeds s = getState().Speeds;
+        final double linearToleranceMps = 0.05;
+        final double omegaToleranceRadPerSec = 0.1;
+        return Math.abs(s.vxMetersPerSecond) < linearToleranceMps
+            && Math.abs(s.vyMetersPerSecond) < linearToleranceMps
+            && Math.abs(s.omegaRadiansPerSecond) < omegaToleranceRadPerSec;
     }
 
     /**
@@ -124,16 +166,18 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
          * This ensures driving behavior doesn't change until an explicit disable event occurs during testing.
          */
         if (!m_hasAppliedOperatorPerspective || DriverStation.isDisabled()) {
-            DriverStation.getAlliance().ifPresent(allianceColor -> {
-                setOperatorPerspectiveForward(
-                    allianceColor == Alliance.Red
-                        ? kRedAlliancePerspectiveRotation
-                        : kBlueAlliancePerspectiveRotation
-                );
-                // No automatic seed: field-centric uses odometry pose as-is. Driver can press Back to re-seed.
-                m_hasAppliedOperatorPerspective = true;
-            });
+            // When no FMS, getAlliance() is empty; default to Blue so hub and operator perspective match.
+            final Alliance alliance = DriverStation.getAlliance().orElse(Alliance.Blue);
+            setOperatorPerspectiveForward(
+                alliance == Alliance.Red
+                    ? kRedAlliancePerspectiveRotation
+                    : kBlueAlliancePerspectiveRotation
+            );
+            m_hasAppliedOperatorPerspective = true;
         }
+
+        /* Publish raw Pigeon 2 yaw for heading troubleshooting (SmartDashboard is on NT) */
+        SmartDashboard.putNumber("Pigeon Raw Yaw (deg)", getPigeon2().getYaw().getValueAsDouble());
     }
 
     /**

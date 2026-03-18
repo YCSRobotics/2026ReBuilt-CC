@@ -84,7 +84,7 @@ public final class SubsystemCommands {
             aimAndDriveCommand,
             Commands.waitSeconds(0.25)
                 .andThen(prepareShotCommand),
-            Commands.waitUntil(() -> aimAndDriveCommand.isAimed() && prepareShotCommand.isReadyToShoot())
+            Commands.waitUntil(() -> aimAndDriveCommand.isAimed() && prepareShotCommand.isReadyToShoot() && swerve.isStopped())
                 .andThen(feed())
         );
     }
@@ -93,6 +93,17 @@ public final class SubsystemCommands {
         return shooter.dashboardSpinUpCommand()
             .andThen(feed())
             .handleInterrupt(() -> shooter.stop());
+    }
+
+    /** Spin up shooter and hood to given preset, wait for both, then feed. Use for manual preset (e.g. first row of table). */
+    public Command shootWithPreset(double rpm, double hoodPosition) {
+        Command cmd = Commands.parallel(
+                hood.positionCommand(hoodPosition),
+                shooter.spinUpCommand(rpm))
+            .andThen(feed())
+            .finallyDo(() -> shooter.stop());
+        cmd.addRequirements(shooter, hood, feeder, floor);
+        return cmd.handleInterrupt(() -> shooter.stop());
     }
 
     /** Feeder and floor start together; agitate starts after a short delay; all stop when command ends. */

@@ -66,6 +66,7 @@ public final class AutoRoutines {
 
     public void configure() {
         autoChooser.addRoutine("Outpost and Depot", this::outpostAndDepotRoutine);
+        autoChooser.addRoutine("Outpost and Shoot", this::outpostAndShootRoutine);
         autoChooser.addRoutine("Bump to Collect Fuel", this::bumpToCollectFuelRoutine);
         SmartDashboard.putData("Auto Chooser", autoChooser);
         RobotModeTriggers.autonomous().whileTrue(autoChooser.selectedCommandScheduler());
@@ -114,6 +115,46 @@ public final class AutoRoutines {
         );
 
         shootingPoseToTower.active().whileTrue(limelight.idle());
+
+        return routine;
+    }
+
+    /**
+     * Outpost and Shoot: start (Waypoint 1) → outpost (stop for human feed) → Waypoint 3 (shoot and stop).
+     * Uses deploy/choreo/OutpostAndShootTrajectory.traj (segment 0: start→outpost, segment 1: outpost→shoot pose).
+     */
+    private AutoRoutine outpostAndShootRoutine() {
+        final AutoRoutine routine = autoFactory.newRoutine("Outpost and Shoot");
+        final AutoTrajectory startToOutpost = routine.trajectory("OutpostAndShootTrajectory", 0);
+        final AutoTrajectory outpostToShootPose = routine.trajectory("OutpostAndShootTrajectory", 1);
+
+        routine.active().onTrue(
+            Commands.sequence(
+                startToOutpost.resetOdometry(),
+                startToOutpost.cmd()
+            )
+        );
+
+        // After reaching outpost, wait for human player to feed fuel then drive to shoot pose
+        startToOutpost.doneDelayed(0.5).onTrue(
+            Commands.sequence(
+                Commands.waitSeconds(3.0), // Human player feeds fuel at outpost
+                outpostToShootPose.cmd()
+            )
+        );
+
+        // Spin up shooter and hood while approaching shoot pose
+        outpostToShootPose.atTime(0.5).onTrue(
+            Commands.parallel(
+                shooter.spinUpCommand(2600),
+                hood.positionCommand(0.32)
+            )
+        );
+        outpostToShootPose.active().whileTrue(limelight.idle());
+
+        outpostToShootPose.done().onTrue(
+            subsystemCommands.aimAndShoot().withTimeout(5)
+        );
 
         return routine;
     }

@@ -47,6 +47,8 @@ public class Shooter extends SubsystemBase {
     private final ShuffleboardTab shooterTab = Shuffleboard.getTab("Shooter");
     private final GenericEntry targetRpmEntry = shooterTab.add("Target RPM", kDefaultTargetRPM).getEntry();
     private double dashboardTargetRPM = kDefaultTargetRPM;
+    /** Actual RPM setpoint sent to motors (for NT/Advantage Scope). */
+    private double currentTargetRPM = kDefaultTargetRPM;
 
     public Shooter() {
         if (Constants.MechanismPresence.kShooter()) {
@@ -101,6 +103,7 @@ public class Shooter extends SubsystemBase {
     }
 
     public void setRPM(double rpm) {
+        currentTargetRPM = rpm;
         for (final TalonFX m : motors) {
             m.setControl(velocityRequest.withVelocity(RPM.of(rpm)));
         }
@@ -152,6 +155,6 @@ public class Shooter extends SubsystemBase {
         if (leftMotor != null) initSendable(builder, leftMotor, "Left");
         if (middleMotor != null) initSendable(builder, middleMotor, "Middle");
         if (rightMotor != null) initSendable(builder, rightMotor, "Right");
-        builder.addDoubleProperty("Target RPM", () -> dashboardTargetRPM, null);
+        builder.addDoubleProperty("Target RPM", () -> currentTargetRPM, null);
     }
 }
