@@ -18,11 +18,13 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import edu.wpi.first.wpilibj.DriverStation;
 import frc.robot.Constants.Driving;
 // import frc.robot.commands.AutoRoutines;
 import frc.robot.commands.AimAndDriveCommand;
 import frc.robot.commands.IntakeCommands;
 import frc.robot.commands.ManualDriveCommand;
+import frc.robot.commands.PrepareShotCommand;
 import frc.robot.commands.SubsystemCommands;
 import frc.robot.Landmarks;
 import frc.robot.subsystems.Feeder;
@@ -73,7 +75,12 @@ public class RobotContainer {
         // autoRoutines.configure();
         swerve.registerTelemetry(swerveTelemetry::telemeterize);
     }
-    
+
+    /** Sets odometry to the known practice start pose (e.g. by the hub). Call when not FMS-attached. Syncs gyro to pose so 180° (Red) is preserved. */
+    public void setInitialPoseForPractice() {
+        swerve.resetPoseAndGyro(Landmarks.practiceInitialPose());
+    }
+
     /**
      * Use this method to define your trigger->command mappings. Triggers can be created via the
      * {@link Trigger#Trigger(java.util.function.BooleanSupplier)} constructor with an arbitrary
@@ -107,9 +114,18 @@ public class RobotContainer {
                 : hanger.homingCommand());
         RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop()).onTrue(onEnableCommand);
 
-        // Operator: aim-and-shoot and manual shoot (same assignments as driver had).
+        // Operator: aim-and-shoot, manual shoot (dashboard RPM), and manual shoot presets (Y / X / A = table rows).
         operator.rightTrigger().whileTrue(subsystemCommands.aimAndShoot());
         operator.rightBumper().whileTrue(subsystemCommands.shootManually());
+        operator.y().whileTrue(subsystemCommands.shootWithPreset(
+            PrepareShotCommand.FIRST_ROW_SHOT.shooterRPM,
+            PrepareShotCommand.FIRST_ROW_SHOT.hoodPosition));
+        operator.x().whileTrue(subsystemCommands.shootWithPreset(
+            PrepareShotCommand.MID_ROW_SHOT.shooterRPM,
+            PrepareShotCommand.MID_ROW_SHOT.hoodPosition));
+        operator.a().whileTrue(subsystemCommands.shootWithPreset(
+            PrepareShotCommand.THIRD_ROW_SHOT.shooterRPM,
+            PrepareShotCommand.THIRD_ROW_SHOT.hoodPosition));
         operator.povUp().onTrue(hanger.positionCommand(Hanger.Position.HANGING));
         operator.povDown().onTrue(hanger.positionCommand(Hanger.Position.HUNG));
 
@@ -150,11 +166,6 @@ public class RobotContainer {
         if (Constants.MechanismPresence.kFeeder()) {
             operator.x().whileTrue(feeder.feedCommand());
         }
-        // Bringup: Operator Y = Shooter at low RPM (velocity closed-loop). Only bind when present.
-        if (Constants.MechanismPresence.kShooter()) {
-            operator.y().whileTrue(
-                Commands.run(() -> shooter.setRPM(Constants.Bringup.kShooterRPM), shooter).finallyDo(() -> shooter.stop()));
-        }
         // Driver right bumper = manual shoot (same as competition): dashboard RPM spin-up then feed; release = stop.
         driver.rightBumper().whileTrue(subsystemCommands.shootManually());
         // Operator LB = Hanger extend; RB = Hanger retract (while held)
@@ -179,7 +190,9 @@ public class RobotContainer {
         if (Constants.kBringupMode) {
             driver.a().whileTrue(aimCommand);  // Driver A = aim to hub when in bringup
         }
-        driver.start().onTrue(Commands.runOnce(() -> swerve.resetPose(new Pose2d())));
+        // Start = full reset (origin, 0°). Y = set heading to alliance forward (keep position); use when facing opposing wall.
+        driver.start().onTrue(Commands.runOnce(() -> swerve.resetPoseAndGyro(new Pose2d())));
+        driver.y().onTrue(Commands.runOnce(() -> swerve.resetHeadingToAllianceForward()));
     }
 
     /**
@@ -198,6 +211,9 @@ public class RobotContainer {
     private Command updateVisionCommand() {
         return limelight.run(() -> {
             final Pose2d currentRobotPose = swerve.getState().Pose;
+            // Publish alliance for Elastic / verification (FMS or DS manual)
+            SmartDashboard.putString("Alliance", DriverStation.getAlliance()
+                .map(a -> a.name()).orElse("Unknown"));
             // Publish robot-to-hub distance for Elastic / calibration (RPM vs distance vs hood)
             final Translation2d robotPosition = currentRobotPose.getTranslation();
             final Translation2d hubPosition = Landmarks.hubPosition();
