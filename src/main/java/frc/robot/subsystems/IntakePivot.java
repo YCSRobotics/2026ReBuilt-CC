@@ -2,7 +2,6 @@ package frc.robot.subsystems;
 
 import static edu.wpi.first.units.Units.Degrees;
 import static edu.wpi.first.units.Units.RPM;
-import static edu.wpi.first.units.Units.RotationsPerSecond;
 
 import com.revrobotics.PersistMode;
 import com.revrobotics.RelativeEncoder;
@@ -64,11 +63,17 @@ public class IntakePivot extends SubsystemBase {
     /** Clamp 85%: allows faster tracking of profile. */
     private static final double kMaxOutput = 0.85;
     private static final double kMinOutput = -0.85;
-    /** Scale 1.0 = full profile speed; >1 = faster cruise and accel. */
-    private static final double kSpeedScaleForDirectionCheck = 1.5;
-    private static final double kCruiseVelRPM = Neo2.kFreeSpeed.in(RPM) * 1.0 * kSpeedScaleForDirectionCheck;
-    /** Higher accel = faster ramp to cruise. */
-    private static final double kMaxAccelRPMPerSec = 2000 * kSpeedScaleForDirectionCheck;
+    /** Neo cannot exceed free speed; no point requesting higher cruise RPM. */
+    private static final double kCruiseVelRPM = Neo2.kFreeSpeed.in(RPM);
+    /** Base MAXMotion accel (motor RPM/s); multiply for snappier ramps (current limit still applies). */
+    private static final double kMaxAccelRPMPerSecBase = 2000.0;
+    private static final double kAccelMultiplier = 2.0;
+    private static final double kMaxAccelRPMPerSec = kMaxAccelRPMPerSecBase * kAccelMultiplier;
+    /**
+     * Fraction of full-scale kV (12 V at Neo free speed). Higher = stronger velocity feedforward.
+     * Tune if oscillation increases (lower) or motion feels soft (raise).
+     */
+    private static final double kKvFraction = 0.55;
     /** Looser tolerance so profile doesn't over-correct and cause back-and-forth oscillation. */
     private static final double kAllowedErrDegrees = 8;
     private static final int kSmartCurrentLimitAmps = 40;
@@ -115,8 +120,8 @@ public class IntakePivot extends SubsystemBase {
                 .d(kD)
                 .iZone(kIz)
                 .outputRange(kMinOutput, kMaxOutput);
-            // REV kV is Volts per RPM. Bump to 40% so feedforward helps when profile requests motion (~5%+ at low speed).
-            config.closedLoop.feedForward.kV(0.4 * 12.0 / Neo2.kFreeSpeed.in(RPM));
+            // REV kV is Volts per RPM.
+            config.closedLoop.feedForward.kV(kKvFraction * 12.0 / Neo2.kFreeSpeed.in(RPM));
             config.closedLoop.maxMotion
                 .cruiseVelocity(kCruiseVelRPM)        // Motor RPM
                 .maxAcceleration(kMaxAccelRPMPerSec) // Motor RPM per second
