@@ -69,6 +69,7 @@ public final class AutoRoutines {
         autoChooser.addRoutine("Outpost and Depot", this::outpostAndDepotRoutine);
         autoChooser.addRoutine("Outpost and Shoot", this::outpostAndShootRoutine);
         autoChooser.addRoutine("Bump to Collect Fuel", this::bumpToCollectFuelRoutine);
+        autoChooser.addRoutine("Backup and Shoot", this::backupAndShootRoutine);
         SmartDashboard.putBoolean("Auto Chooser Published", true);
         SmartDashboard.putString("Auto Chooser Debug", "AutoRoutines.configure() ran");
         SmartDashboard.putData("Auto Chooser", autoChooser);
@@ -159,6 +160,39 @@ public final class AutoRoutines {
         // When waypoint-3 is complete, shoot even if the robot hasn't fully reached `swerve.isStopped()`
         // (that gate can be too strict when the drivetrain is still settling).
         outpostToShootPose.done().onTrue(
+            subsystemCommands.shootWithPreset(
+                    PrepareShotCommand.MID_ROW_SHOT.shooterRPM,
+                    PrepareShotCommand.MID_ROW_SHOT.hoodPosition
+                )
+                .withTimeout(10)
+        );
+
+        return routine;
+    }
+
+    /**
+     * Faces the hub, backs up a short distance on {@code deploy/choreo/BackupAndShoot.traj}, then shoots with
+     * mid-row preset (same RPM/hood as teleop mid shot).
+     */
+    private AutoRoutine backupAndShootRoutine() {
+        final AutoRoutine routine = autoFactory.newRoutine("Backup and Shoot");
+        final AutoTrajectory backup = routine.trajectory("BackupAndShoot");
+
+        routine.active().onTrue(
+            Commands.sequence(
+                backup.resetOdometry(),
+                backup.cmd()
+            )
+        );
+
+        backup.atTime(0).onTrue(
+            Commands.parallel(
+                shooter.spinUpCommand(PrepareShotCommand.MID_ROW_SHOT.shooterRPM),
+                hood.positionCommand(PrepareShotCommand.MID_ROW_SHOT.hoodPosition)
+            )
+        );
+        backup.active().whileTrue(limelight.idle());
+        backup.done().onTrue(
             subsystemCommands.shootWithPreset(
                     PrepareShotCommand.MID_ROW_SHOT.shooterRPM,
                     PrepareShotCommand.MID_ROW_SHOT.hoodPosition
