@@ -89,6 +89,33 @@ public final class SubsystemCommands {
         );
     }
 
+    /**
+     * Shoot at a fixed preset (e.g. mid-table) without any aiming/driving.
+     * Waits for the drivetrain to be stopped before starting the feeder/floor.
+     */
+    public Command shootWithPresetAndWaitStopped(double rpm, double hoodPosition) {
+        final Command spoolAndSet = Commands.parallel(
+            hood.positionCommand(hoodPosition),
+            shooter.spinUpCommand(rpm)
+        );
+
+        Command cmd = spoolAndSet
+            .andThen(Commands.waitUntil(swerve::isStopped))
+            .andThen(feed())
+            .finallyDo(() -> shooter.stop());
+
+        cmd.addRequirements(shooter, hood, feeder, floor);
+        return cmd.handleInterrupt(() -> shooter.stop());
+    }
+
+    /** Convenience: fixed mid-table preset (3500 RPM, 0.5 hood) with drivetrain stop gate. */
+    public Command shootMidPresetAndWaitStopped() {
+        return shootWithPresetAndWaitStopped(
+            PrepareShotCommand.MID_ROW_SHOT.shooterRPM,
+            PrepareShotCommand.MID_ROW_SHOT.hoodPosition
+        );
+    }
+
     public Command shootManually() {
         return shooter.dashboardSpinUpCommand()
             .andThen(feed())

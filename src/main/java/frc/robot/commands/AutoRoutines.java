@@ -8,6 +8,7 @@ import choreo.auto.AutoChooser;
 import choreo.auto.AutoFactory;
 import choreo.auto.AutoRoutine;
 import choreo.auto.AutoTrajectory;
+import com.ctre.phoenix6.swerve.SwerveRequest;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
@@ -68,6 +69,8 @@ public final class AutoRoutines {
         autoChooser.addRoutine("Outpost and Depot", this::outpostAndDepotRoutine);
         autoChooser.addRoutine("Outpost and Shoot", this::outpostAndShootRoutine);
         autoChooser.addRoutine("Bump to Collect Fuel", this::bumpToCollectFuelRoutine);
+        SmartDashboard.putBoolean("Auto Chooser Published", true);
+        SmartDashboard.putString("Auto Chooser Debug", "AutoRoutines.configure() ran");
         SmartDashboard.putData("Auto Chooser", autoChooser);
         RobotModeTriggers.autonomous().whileTrue(autoChooser.selectedCommandScheduler());
     }
@@ -121,24 +124,25 @@ public final class AutoRoutines {
 
     /**
      * Outpost and Shoot: start (Waypoint 1) → outpost (stop for human feed) → Waypoint 3 (shoot and stop).
-     * Uses deploy/choreo/OutpostAndShootTrajectory.traj (segment 0: start→outpost, segment 1: outpost→shoot pose).
+     * Uses deploy/choreo/OutpostAndShoot.traj (segment 0: start→outpost, segment 1: outpost→shoot pose).
      */
     private AutoRoutine outpostAndShootRoutine() {
         final AutoRoutine routine = autoFactory.newRoutine("Outpost and Shoot");
-        final AutoTrajectory startToOutpost = routine.trajectory("OutpostAndShootTrajectory", 0);
-        final AutoTrajectory outpostToShootPose = routine.trajectory("OutpostAndShootTrajectory", 1);
+        final AutoTrajectory startToOutpost = routine.trajectory("OutpostAndShoot", 0);
+        final AutoTrajectory outpostToShootPose = routine.trajectory("OutpostAndShoot", 1);
+        final double waitAtWaypoint2Seconds = 10.0;
+        final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
 
         routine.active().onTrue(
             Commands.sequence(
                 startToOutpost.resetOdometry(),
-                startToOutpost.cmd()
-            )
-        );
-
-        // After reaching outpost, wait for human player to feed fuel then drive to shoot pose
-        startToOutpost.doneDelayed(0.5).onTrue(
-            Commands.sequence(
-                Commands.waitSeconds(3.0), // Human player feeds fuel at outpost
+                startToOutpost.cmd(),
+                // Wait while the drivetrain is stopped at the trajectory split point
+                // (requires split=true on the waypoint you want to pause at).
+                // Hold swerve idle so the default manual-drive command can't "take over"
+                // and cause the robot to creep/back-and-forth during the human-feed pause.
+                Commands.run(() -> swerve.setControl(idleRequest), swerve)
+                    .withTimeout(waitAtWaypoint2Seconds),
                 outpostToShootPose.cmd()
             )
         );
@@ -146,14 +150,20 @@ public final class AutoRoutines {
         // Spin up shooter and hood while approaching shoot pose
         outpostToShootPose.atTime(0.5).onTrue(
             Commands.parallel(
-                shooter.spinUpCommand(2600),
-                hood.positionCommand(0.32)
+                shooter.spinUpCommand(PrepareShotCommand.MID_ROW_SHOT.shooterRPM),
+                hood.positionCommand(PrepareShotCommand.MID_ROW_SHOT.hoodPosition)
             )
         );
         outpostToShootPose.active().whileTrue(limelight.idle());
 
+        // When waypoint-3 is complete, shoot even if the robot hasn't fully reached `swerve.isStopped()`
+        // (that gate can be too strict when the drivetrain is still settling).
         outpostToShootPose.done().onTrue(
-            subsystemCommands.aimAndShoot().withTimeout(5)
+            subsystemCommands.shootWithPreset(
+                    PrepareShotCommand.MID_ROW_SHOT.shooterRPM,
+                    PrepareShotCommand.MID_ROW_SHOT.hoodPosition
+                )
+                .withTimeout(10)
         );
 
         return routine;

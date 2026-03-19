@@ -60,10 +60,6 @@ public class Robot extends TimedRobot {
     public void disabledInit() {
         // Reduce Limelight thermal output while disabled by throttling frame processing
         LimelightHelpers.SetThrottle("limelight", 150);
-        // In practice (no FMS), set odometry to known pose so initial x/y/heading are correct
-        if (!DriverStation.isFMSAttached()) {
-            m_robotContainer.setInitialPoseForPractice();
-        }
     }
 
     @Override
