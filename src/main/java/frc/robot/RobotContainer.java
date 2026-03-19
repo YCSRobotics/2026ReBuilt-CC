@@ -20,7 +20,7 @@ import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj.DriverStation;
 import frc.robot.Constants.Driving;
-// import frc.robot.commands.AutoRoutines;
+import frc.robot.commands.AutoRoutines;
 import frc.robot.commands.AimAndDriveCommand;
 import frc.robot.commands.IntakeCommands;
 import frc.robot.commands.ManualDriveCommand;
@@ -62,7 +62,7 @@ public class RobotContainer {
     private final CommandXboxController driver = new CommandXboxController(0);
     private final CommandXboxController operator = new CommandXboxController(1);
 
-    // private final AutoRoutines autoRoutines = new AutoRoutines(swerve, intakePivot, intakeRollers, floor, feeder, shooter, hood, hanger, limelight);
+    private final AutoRoutines autoRoutines = new AutoRoutines(swerve, intakePivot, intakeRollers, floor, feeder, shooter, hood, hanger, limelight);
     private final SubsystemCommands subsystemCommands = new SubsystemCommands(
         swerve, intakePivot, intakeRollers, floor, feeder, shooter, hood, hanger,
         () -> -driver.getLeftY(),
@@ -72,13 +72,8 @@ public class RobotContainer {
     /** The container for the robot. Contains subsystems, OI devices, and commands. */
     public RobotContainer() {
         configureBindings();
-        // autoRoutines.configure();
+        autoRoutines.configure();
         swerve.registerTelemetry(swerveTelemetry::telemeterize);
-    }
-
-    /** Sets odometry to the known practice start pose (e.g. by the hub). Call when not FMS-attached. Syncs gyro to pose so 180° (Red) is preserved. */
-    public void setInitialPoseForPractice() {
-        swerve.resetPoseAndGyro(Landmarks.practiceInitialPose());
     }
 
     /**
@@ -193,6 +188,20 @@ public class RobotContainer {
         // Start = full reset (origin, 0°). Y = set heading to alliance forward (keep position); use when facing opposing wall.
         driver.start().onTrue(Commands.runOnce(() -> swerve.resetPoseAndGyro(new Pose2d())));
         driver.y().onTrue(Commands.runOnce(() -> swerve.resetHeadingToAllianceForward()));
+
+        // Practice-only: disabled operator action to set a deterministic starting pose.
+        // Driver A (while disabled) sets pose to the known Red-hub practice placement.
+        RobotModeTriggers.disabled()
+            .and(driver.a())
+            .onTrue(
+                Commands.runOnce(() -> {
+                    if (!DriverStation.isFMSAttached()) {
+                        swerve.resetPoseAndGyro(Landmarks.practiceRedHubPose());
+                        // Keep field-centric reference aligned with the fixed red-hub practice pose.
+                        swerve.setOperatorPerspectiveForPracticeRed();
+                    }
+                }).ignoringDisable(true)
+            );
     }
 
     /**

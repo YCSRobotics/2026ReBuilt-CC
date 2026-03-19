@@ -24,6 +24,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import frc.robot.generated.TunerConstants;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
+import java.util.Optional;
 
 public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     /* Blue alliance sees forward as 0 degrees (toward red alliance wall) */
@@ -32,6 +33,7 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     private static final Rotation2d kRedAlliancePerspectiveRotation = Rotation2d.k180deg;
     /* Keep track if we've ever applied the operator perspective before or not */
     private boolean m_hasAppliedOperatorPerspective = false;
+    private Alliance m_lastOperatorPerspectiveAlliance = null;
 
     /** Swerve request to apply during field-centric path following */
     private final SwerveRequest.ApplyFieldSpeeds pathFieldSpeedsRequest = new SwerveRequest.ApplyFieldSpeeds();
@@ -85,8 +87,15 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
      * (e.g. 0° at power-up) would overwrite the reset heading on the next odometry update.
      */
     public void resetPoseAndGyro(Pose2d pose) {
-        resetPose(pose);
+        // For troubleshooting/visualization, also force the raw Pigeon yaw to match the pose heading.
+        // This does not need to drive the estimator heading (resetRotation already did that),
+        // but it avoids a persistent "pose=180 while raw gyro=0" mismatch on dashboards.
         getPigeon2().setYaw(pose.getRotation().getDegrees());
+
+        // Important: `setYaw()` changes raw gyro heading. Reset pose/rotation after that so CTRE's
+        // internal gyro-reference/offset is computed from the desired yaw heading.
+        resetPose(pose);
+        resetRotation(pose.getRotation());
     }
 
     /**
@@ -102,7 +111,17 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
             ? kRedAlliancePerspectiveRotation
             : kBlueAlliancePerspectiveRotation;
         resetPose(new Pose2d(position, allianceForward));
-        getPigeon2().setYaw(allianceForward.getDegrees());
+        resetRotation(allianceForward);
+    }
+
+    /**
+     * Forces operator perspective forward to match the fixed practice pose (Red hub, heading 180°).
+     * This avoids field-centric "fight" when practicing with no FMS alliance information.
+     */
+    public void setOperatorPerspectiveForPracticeRed() {
+        setOperatorPerspectiveForward(kRedAlliancePerspectiveRotation);
+        m_hasAppliedOperatorPerspective = true;
+        m_lastOperatorPerspectiveAlliance = Alliance.Red;
     }
 
     /**
@@ -165,15 +184,23 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
          * Otherwise, only check and apply the operator perspective if the DS is disabled.
          * This ensures driving behavior doesn't change until an explicit disable event occurs during testing.
          */
-        if (!m_hasAppliedOperatorPerspective || DriverStation.isDisabled()) {
-            // When no FMS, getAlliance() is empty; default to Blue so hub and operator perspective match.
-            final Alliance alliance = DriverStation.getAlliance().orElse(Alliance.Blue);
+        final Optional<Alliance> allianceOpt = DriverStation.getAlliance();
+        final boolean allianceKnown = allianceOpt.isPresent();
+
+        // Apply operator perspective when:
+        // 1) We haven't applied it before (initial startup)
+        // 2) DS is disabled AND alliance is known AND alliance changed
+        if (!m_hasAppliedOperatorPerspective
+            || (DriverStation.isDisabled() && allianceKnown && allianceOpt.get() != m_lastOperatorPerspectiveAlliance)) {
+
+            final Alliance allianceToApply = allianceOpt.orElse(Alliance.Blue);
             setOperatorPerspectiveForward(
-                alliance == Alliance.Red
+                allianceToApply == Alliance.Red
                     ? kRedAlliancePerspectiveRotation
                     : kBlueAlliancePerspectiveRotation
             );
             m_hasAppliedOperatorPerspective = true;
+            m_lastOperatorPerspectiveAlliance = allianceToApply;
         }
 
         /* Publish raw Pigeon 2 yaw for heading troubleshooting (SmartDashboard is on NT) */
