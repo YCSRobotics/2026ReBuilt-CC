@@ -47,12 +47,18 @@ public class Hood extends SubsystemBase {
         SmartDashboard.putData(this);
     }
 
+    /** Drives the hood from the Shuffleboard "Position" widget when no other command owns the hood. */
+    public void applyShuffleboardPosition() {
+        setPosition(positionEntry.getDouble(kDefaultPosition));
+    }
+
     /** Expects a position between 0.0 and 1.0 */
     public void setPosition(double position) {
         final double clampedPosition = MathUtil.clamp(position, kMinPosition, kMaxPosition);
         leftServo.set(clampedPosition);
         rightServo.set(clampedPosition);
         targetPosition = clampedPosition;
+        SmartDashboard.putNumber("Hood PWM setpoint (0–1)", clampedPosition);
     }
 
     /** Expects a position between 0.0 and 1.0 */
@@ -84,9 +90,11 @@ public class Hood extends SubsystemBase {
 
     @Override
     public void periodic() {
-        final double dashboardPosition = positionEntry.getDouble(kDefaultPosition);
+        // Drive PWM from Shuffleboard whenever no command requires the hood. Subsystem periodic()
+        // runs while disabled; the command scheduler does not run default commands (or most commands)
+        // when disabled — so this path is what makes pit tuning work with the DS in Disabled.
         if (getCurrentCommand() == null) {
-            setPosition(dashboardPosition);
+            applyShuffleboardPosition();
         }
         updateCurrentPosition();
     }

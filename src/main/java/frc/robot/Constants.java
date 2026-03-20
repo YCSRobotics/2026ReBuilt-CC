@@ -101,5 +101,25 @@ public final class Constants {
         public static final double kCameraRollDegrees = 0.0;   // Rotation around forward axis
         public static final double kCameraPitchDegrees = 18;   // Rotation around side axis (positive = camera pointing up)
         public static final double kCameraYawDegrees = 0.0;    // Rotation around vertical axis (positive = camera pointing right)
+
+        /**
+         * If |vision yaw − odometry yaw| is within this band (degrees), fuse vision rotation into pose;
+         * otherwise use vision translation only (measurement pose keeps odometry heading, theta std dev huge).
+         */
+        public static final double kVisionHeadingAgreementDegrees = 7.5;
+
+        /** Vision measurement std dev for x and y (meters) when applying a vision update. */
+        public static final double kVisionStdDevXYMeters = 0.1;
+
+        /**
+         * Theta std dev (radians) when heading is within {@link #kVisionHeadingAgreementDegrees}.
+         * Lower = trust vision heading more for small corrections.
+         */
+        public static final double kVisionThetaStdDevWithinHeadingBandRad = 0.35;
+
+        /**
+         * Theta std dev (radians) when outside the heading band: effectively translation-only fusion.
+         */
+        public static final double kVisionThetaStdDevTranslationOnlyRad = 1.0e6;
     }
 }
