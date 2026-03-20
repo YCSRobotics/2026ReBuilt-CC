@@ -205,7 +205,7 @@ public final class AutoRoutines {
                     PrepareShotCommand.FIRST_ROW_SHOT.shooterRPM,
                     PrepareShotCommand.FIRST_ROW_SHOT.hoodPosition
                 )
-                .withTimeout(10)
+                .withTimeout(20)
         );
 
         return routine;
