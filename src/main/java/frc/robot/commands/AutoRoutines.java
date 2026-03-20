@@ -178,10 +178,11 @@ public final class AutoRoutines {
 
     /**
      * Faces the hub, backs up a short distance on {@code deploy/choreo/BackupAndShoot.traj}, then shoots with
-     * mid-row preset (same RPM/hood as teleop mid shot).
+     * first-row preset (2950 RPM / hood 0.4).
      */
     private AutoRoutine backupAndShootRoutine() {
         final AutoRoutine routine = autoFactory.newRoutine("Backup and Shoot");
+
         final AutoTrajectory backup = routine.trajectory("BackupAndShoot");
 
         routine.active().onTrue(
@@ -193,15 +194,16 @@ public final class AutoRoutines {
 
         backup.atTime(0).onTrue(
             Commands.parallel(
-                shooter.spinUpCommand(PrepareShotCommand.MID_ROW_SHOT.shooterRPM),
-                hood.positionCommand(PrepareShotCommand.MID_ROW_SHOT.hoodPosition)
+                shooter.spinUpCommand(PrepareShotCommand.FIRST_ROW_SHOT.shooterRPM),
+                hood.positionCommand(PrepareShotCommand.FIRST_ROW_SHOT.hoodPosition)
             )
         );
+
         backup.active().whileTrue(limelight.idle());
         backup.done().onTrue(
             subsystemCommands.shootWithPreset(
-                    PrepareShotCommand.MID_ROW_SHOT.shooterRPM,
-                    PrepareShotCommand.MID_ROW_SHOT.hoodPosition
+                    PrepareShotCommand.FIRST_ROW_SHOT.shooterRPM,
+                    PrepareShotCommand.FIRST_ROW_SHOT.hoodPosition
                 )
                 .withTimeout(10)
         );
