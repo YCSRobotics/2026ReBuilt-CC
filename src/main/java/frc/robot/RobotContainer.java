@@ -21,8 +21,6 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj.DriverStation;
 import frc.robot.Constants.Driving;
 import frc.robot.commands.AutoRoutines;
-import frc.robot.commands.AimAndDriveCommand;
-import frc.robot.commands.IntakeCommands;
 import frc.robot.commands.ManualDriveCommand;
 import frc.robot.commands.PrepareShotCommand;
 import frc.robot.commands.SubsystemCommands;
@@ -86,19 +84,6 @@ public class RobotContainer {
      * joysticks}.
      */
     private void configureBindings() {
-        if (Constants.kBringupMode) {
-            configureManualDriveBindings();
-            configureBringupBindings();
-            // Intake pivot homing disabled — causes violent motion; focus on shooter/feeder/floor only.
-            // RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop())
-            //     .onTrue(Commands.waitSeconds(0.3).andThen(intakePivot.homingCommand()));
-            if (Constants.MechanismPresence.kHanger()) {
-                RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop())
-                    .onTrue(hanger.homingCommand());
-            }
-            return;
-        }
-
         configureManualDriveBindings();
         limelight.setDefaultCommand(updateVisionCommand());
 
@@ -141,35 +126,6 @@ public class RobotContainer {
         }
     }
 
-    /**
-     * Bringup: one button per subsystem (operator). Hold one button at a time to verify.
-     * Driver stick = swerve. Order: Floor → Intake → Feeder → Shooter → Hanger.
-     * Bringup-only constants: {@link Constants.Bringup}. Search codebase for "Bringup" to find all bringup code.
-     */
-    private void configureBringupBindings() {
-        // Bringup: Operator A = Floor feed (while held); release to stop.
-        operator.a().whileTrue(floor.runCommand(Floor.Speed.FEED));
-        // Bringup: Operator B = Intake rollers only (while held)
-        operator.b().whileTrue(intakeRollers.runCommand(IntakeRollers.Speed.INTAKE));
-        // Intake pivot disabled — was causing violent back-and-forth; re-enable when pivot is fixed.
-        // if (Constants.MechanismPresence.kIntakePivot()) {
-        //     final Command pivotBringupCommand = Commands.run(() -> intakePivot.set(IntakePivot.Position.INTAKE), intakePivot)
-        //         .finallyDo(() -> intakePivot.set(IntakePivot.Position.STOWED));
-        //     operator.leftTrigger().debounce(0.15).whileTrue(pivotBringupCommand);
-        // }
-        // Operator X = Feeder feed (while held). Only bind when present to avoid CAN traffic for absent device.
-        if (Constants.MechanismPresence.kFeeder()) {
-            operator.x().whileTrue(feeder.feedCommand());
-        }
-        // Driver right bumper = manual shoot (same as competition): dashboard RPM spin-up then feed; release = stop.
-        driver.rightBumper().whileTrue(subsystemCommands.shootManually());
-        // Operator LB = Hanger extend; RB = Hanger retract (while held)
-        operator.leftBumper().whileTrue(
-            Commands.run(() -> hanger.setPercentOutput(0.2), hanger).finallyDo(() -> hanger.setPercentOutput(0)));
-        operator.rightBumper().whileTrue(
-            Commands.run(() -> hanger.setPercentOutput(-0.2), hanger).finallyDo(() -> hanger.setPercentOutput(0)));
-    }
-
     private void configureManualDriveBindings() {
         final ManualDriveCommand manualDriveCommand = new ManualDriveCommand(
             swerve, 
@@ -180,11 +136,6 @@ public class RobotContainer {
         swerve.setDefaultCommand(manualDriveCommand);
         driver.back().onTrue(Commands.runOnce(() -> manualDriveCommand.toggleFieldCentric()));
 
-        // Aim to hub - rotation only (bringup only).
-        final AimAndDriveCommand aimCommand = new AimAndDriveCommand(swerve);
-        if (Constants.kBringupMode) {
-            driver.a().whileTrue(aimCommand);  // Driver A = aim to hub when in bringup
-        }
         // Start = full reset (origin, 0°). Y = set heading to alliance forward (keep position); use when facing opposing wall.
         driver.start().onTrue(Commands.runOnce(() -> swerve.resetPoseAndGyro(new Pose2d())));
         driver.y().onTrue(Commands.runOnce(() -> swerve.resetHeadingToAllianceForward()));

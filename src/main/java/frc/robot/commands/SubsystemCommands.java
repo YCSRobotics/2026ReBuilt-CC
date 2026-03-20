@@ -101,7 +101,9 @@ public final class SubsystemCommands {
 
         Command cmd = spoolAndSet
             .andThen(Commands.waitUntil(swerve::isStopped))
-            .andThen(feed())
+            .andThen(Commands.parallel(
+                feed(),
+                Commands.run(() -> hood.setPosition(hoodPosition), hood)))
             .finallyDo(() -> shooter.stop());
 
         cmd.addRequirements(shooter, hood, feeder, floor);
@@ -127,7 +129,9 @@ public final class SubsystemCommands {
         Command cmd = Commands.parallel(
                 hood.positionCommand(hoodPosition),
                 shooter.spinUpCommand(rpm))
-            .andThen(feed())
+            .andThen(Commands.parallel(
+                feed(),
+                Commands.run(() -> hood.setPosition(hoodPosition), hood)))
             .finallyDo(() -> shooter.stop());
         cmd.addRequirements(shooter, hood, feeder, floor);
         return cmd.handleInterrupt(() -> shooter.stop());
