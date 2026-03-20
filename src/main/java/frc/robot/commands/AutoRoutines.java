@@ -203,7 +203,7 @@ public final class AutoRoutines {
                     PrepareShotCommand.MID_ROW_SHOT.shooterRPM,
                     PrepareShotCommand.MID_ROW_SHOT.hoodPosition
                 )
-                .withTimeout(10)
+                .withTimeout(20)
         );
 
         return routine;
