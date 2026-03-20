@@ -23,23 +23,6 @@ import frc.robot.generated.TunerConstants;
  * constants are needed, to reduce verbosity.
  */
 public final class Constants {
-    /** When true, only drive + operator bringup test buttons are active (one mechanism per button). Set false for competition. */
-    public static final boolean kBringupMode = false;
-
-    /**
-     * Constants used only when {@link #kBringupMode} is true (subsystem bringup / test).
-     * Search for "Bringup" in the codebase to find all bringup-specific logic.
-     */
-    public static final class Bringup {
-        private Bringup() {}
-
-        /**
-         * Shooter: velocity setpoint (RPM) for Operator Y hold. Uses closed-loop for soft spool; not raw percent.
-         * Expected bringup behavior: Hold Operator Y → shooter spins at this RPM (velocity PID); release → stop (coast).
-         */
-        public static final double kShooterRPM = 800.0;
-    }
-
     /**
      * When true, no mechanism hardware (CAN 50+) is created — swerve-only bringup, no CAN timeouts.
      * Set false when mechanisms are on the robot; then set each kFloor, kIntakePivot, etc. true as added.

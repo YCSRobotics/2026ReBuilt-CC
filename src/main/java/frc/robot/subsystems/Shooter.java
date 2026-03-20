@@ -33,7 +33,6 @@ import frc.robot.Ports;
 
 /**
  * Shooter subsystem (3 Kraken X60). Velocity closed-loop for spool; coast on stop.
- * Bringup: Operator Y (while held) runs at {@link Constants.Bringup#kShooterRPM}; release stops.
  */
 public class Shooter extends SubsystemBase {
     private static final double kDefaultTargetRPM = 3000.0;
