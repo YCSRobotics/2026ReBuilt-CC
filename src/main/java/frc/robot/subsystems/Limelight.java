@@ -8,6 +8,7 @@ import java.util.Optional;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.networktables.NetworkTable;
@@ -30,6 +31,8 @@ public class Limelight extends SubsystemBase {
     private final NetworkTableEntry distToTagCameraM;
     private final NetworkTableEntry distToTagRobotIn;
     private final NetworkTableEntry aprilTagCountEntry;
+    private final NetworkTableEntry visionOdometryYawDeltaDegEntry;
+    private final NetworkTableEntry visionHeadingWithinBandEntry;
 
     public Limelight(String name) {
         this.name = name;
@@ -39,7 +42,9 @@ public class Limelight extends SubsystemBase {
         this.distToTagCameraM = telemetryTable.getEntry("Distance to Tag - Camera (m)");
         this.distToTagRobotIn = telemetryTable.getEntry("Distance to Tag - Robot (inches)");
         this.aprilTagCountEntry = telemetryTable.getEntry("AprilTag Count");
-        
+        this.visionOdometryYawDeltaDegEntry = telemetryTable.getEntry("Vision/Odom Yaw Delta (deg)");
+        this.visionHeadingWithinBandEntry = telemetryTable.getEntry("Vision Heading Within Band");
+
         // Configure camera pose relative to robot center
         LimelightHelpers.setCameraPose_RobotSpace(
             name,
@@ -90,17 +95,42 @@ public class Limelight extends SubsystemBase {
                 || poseEstimate_MegaTag1.tagCount == 0
                 || poseEstimate_MegaTag2.tagCount == 0
         ) {
+            visionOdometryYawDeltaDegEntry.setDouble(-1.0);
+            visionHeadingWithinBandEntry.setBoolean(false);
             return Optional.empty();
         }
 
-        // Combine the readings from MegaTag1 and MegaTag2:
-        // 1. Use the more stable position from MegaTag2
-        // 2. Use the rotation from MegaTag1 (with low confidence) to counteract gyro drift
-        poseEstimate_MegaTag2.pose = new Pose2d(
-            poseEstimate_MegaTag2.pose.getTranslation(),
-            poseEstimate_MegaTag1.pose.getRotation()
-        );
-        final Matrix<N3, N1> standardDeviations = VecBuilder.fill(0.1, 0.1, 10.0);
+        // Combine MegaTag2 translation with MegaTag1 rotation as the raw vision estimate.
+        final Rotation2d visionRotation = poseEstimate_MegaTag1.pose.getRotation();
+        final var translation = poseEstimate_MegaTag2.pose.getTranslation();
+        final Rotation2d odometryRotation = currentRobotPose.getRotation();
+        final double yawDeltaDeg = Math.abs(visionRotation.minus(odometryRotation).getDegrees());
+        visionOdometryYawDeltaDegEntry.setDouble(yawDeltaDeg);
+
+        final boolean withinHeadingBand = yawDeltaDeg <= Constants.Limelight.kVisionHeadingAgreementDegrees;
+        visionHeadingWithinBandEntry.setBoolean(withinHeadingBand);
+
+        final Pose2d fusedPose;
+        final Matrix<N3, N1> standardDeviations;
+        if (withinHeadingBand) {
+            // Vision and odometry agree on heading: allow Kalman to nudge theta toward vision.
+            fusedPose = new Pose2d(translation, visionRotation);
+            standardDeviations = VecBuilder.fill(
+                Constants.Limelight.kVisionStdDevXYMeters,
+                Constants.Limelight.kVisionStdDevXYMeters,
+                Constants.Limelight.kVisionThetaStdDevWithinHeadingBandRad
+            );
+        } else {
+            // Disagree: translation only — measurement uses odometry yaw so estimator does not snap heading.
+            fusedPose = new Pose2d(translation, odometryRotation);
+            standardDeviations = VecBuilder.fill(
+                Constants.Limelight.kVisionStdDevXYMeters,
+                Constants.Limelight.kVisionStdDevXYMeters,
+                Constants.Limelight.kVisionThetaStdDevTranslationOnlyRad
+            );
+        }
+
+        poseEstimate_MegaTag2.pose = fusedPose;
 
         posePublisher.set(poseEstimate_MegaTag2.pose);
 
