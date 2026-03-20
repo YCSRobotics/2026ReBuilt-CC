@@ -142,8 +142,14 @@ public final class AutoRoutines {
                 // (requires split=true on the waypoint you want to pause at).
                 // Hold swerve idle so the default manual-drive command can't "take over"
                 // and cause the robot to creep/back-and-forth during the human-feed pause.
-                Commands.run(() -> swerve.setControl(idleRequest), swerve)
-                    .withTimeout(waitAtWaypoint2Seconds),
+                Commands.parallel(
+                    Commands.run(() -> swerve.setControl(idleRequest), swerve)
+                        .withTimeout(waitAtWaypoint2Seconds),
+                    // Human feeds balls during the waypoint-2 pause.
+                    // IntakeCommands stops rollers on end; pivot setpoint stays at INTAKE.
+                    IntakeCommands.intakeCommand(intakePivot, intakeRollers)
+                        .withTimeout(waitAtWaypoint2Seconds)
+                ),
                 outpostToShootPose.cmd()
             )
         );
