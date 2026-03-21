@@ -103,7 +103,7 @@ public final class AutoRoutines {
         outpostToDepot.atTimeBeforeEnd(1).onTrue(IntakeCommands.intakeCommand(intakePivot, intakeRollers));
         outpostToDepot.doneDelayed(0.1).onTrue(depotToShootingPose.cmd());
 
-        depotToShootingPose.active().whileTrue(limelight.idle());
+        depotToShootingPose.active().whileTrue(limelight.idle(swerve));
         depotToShootingPose.atTime(0.5).onTrue(
             Commands.parallel(
                 shooter.spinUpCommand(2600),
@@ -118,7 +118,7 @@ public final class AutoRoutines {
             )
         );
 
-        shootingPoseToTower.active().whileTrue(limelight.idle());
+        shootingPoseToTower.active().whileTrue(limelight.idle(swerve));
 
         return routine;
     }
@@ -161,7 +161,7 @@ public final class AutoRoutines {
                 hood.positionCommand(PrepareShotCommand.MID_ROW_SHOT.hoodPosition)
             )
         );
-        outpostToShootPose.active().whileTrue(limelight.idle());
+        outpostToShootPose.active().whileTrue(limelight.idle(swerve));
 
         // When waypoint-3 is complete, shoot even if the robot hasn't fully reached `swerve.isStopped()`
         // (that gate can be too strict when the drivetrain is still settling).
@@ -199,7 +199,7 @@ public final class AutoRoutines {
             )
         );
 
-        backup.active().whileTrue(limelight.idle());
+        backup.active().whileTrue(limelight.idle(swerve));
         backup.done().onTrue(
             subsystemCommands.shootWithPreset(
                     PrepareShotCommand.FIRST_ROW_SHOT.shooterRPM,

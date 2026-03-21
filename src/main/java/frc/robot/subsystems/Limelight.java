@@ -9,14 +9,20 @@ import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructPublisher;
+import edu.wpi.first.units.measure.Distance;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
+import frc.robot.Landmarks;
 import frc.robot.LimelightHelpers;
 import frc.robot.LimelightHelpers.PoseEstimate;
 import frc.robot.LimelightHelpers.RawFiducial;
@@ -82,6 +88,38 @@ public class Limelight extends SubsystemBase {
 
     public String getName() {
         return name;
+    }
+
+    /**
+     * Runs MegaTag2 fusion + dashboard telemetry. Use as the default command, or during auto
+     * ({@link #idle(Swerve)}) so vision keeps updating while another command holds this subsystem.
+     */
+    public Command visionUpdateCommand(Swerve swerve) {
+        return run(() -> {
+            final Pose2d currentRobotPose = swerve.getState().Pose;
+            SmartDashboard.putString(
+                "Alliance",
+                DriverStation.getAlliance().map(a -> a.name()).orElse("Unknown"));
+            final Translation2d robotPosition = currentRobotPose.getTranslation();
+            final Translation2d hubPosition = Landmarks.hubPosition();
+            final Distance distanceToHub = Meters.of(robotPosition.getDistance(hubPosition));
+            SmartDashboard.putNumber("Distance to Hub (inches)", distanceToHub.in(Inches));
+
+            final Optional<Measurement> measurement = getMeasurement(currentRobotPose);
+            measurement.ifPresent(m -> swerve.addVisionMeasurement(
+                m.poseEstimate.pose,
+                m.poseEstimate.timestampSeconds,
+                m.standardDeviations));
+        })
+            .ignoringDisable(true);
+    }
+
+    /**
+     * Same as {@link #visionUpdateCommand(Swerve)} — scheduled during Choreo segments so odometry
+     * still gets vision corrections while the default command is preempted.
+     */
+    public Command idle(Swerve swerve) {
+        return visionUpdateCommand(swerve);
     }
 
     public Optional<Measurement> getMeasurement(Pose2d currentRobotPose) {
