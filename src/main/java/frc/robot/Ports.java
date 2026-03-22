@@ -3,9 +3,16 @@ package frc.robot;
 import com.ctre.phoenix6.CANBus;
 
 public final class Ports {
-    // CAN Buses
+    /**
+     * RoboRIO built-in CAN — mechanisms (intake, feeder, shooter, etc.).
+     */
     public static final CANBus kRoboRioCANBus = new CANBus("rio");
-    public static final CANBus kCANivoreCANBus = new CANBus("main");
+
+    /**
+     * CANivore the swerve drive uses (TalonFX, CANcoder, Pigeon). Must match the device name in
+     * Phoenix Tuner / Tuner X (often {@code "Swerve Bus"} in generated projects).
+     */
+    public static final CANBus kCANivoreCANBus = new CANBus("Swerve Bus");
 
     /** Bus the shooter TalonFXs are on. Use kCANivoreCANBus if shooter is on a CANivore. */
     public static final CANBus kShooterCANBus = kRoboRioCANBus;
