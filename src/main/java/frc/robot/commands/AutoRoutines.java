@@ -8,6 +8,7 @@ import choreo.auto.AutoChooser;
 import choreo.auto.AutoFactory;
 import choreo.auto.AutoRoutine;
 import choreo.auto.AutoTrajectory;
+import java.util.concurrent.atomic.AtomicBoolean;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -177,13 +178,15 @@ public final class AutoRoutines {
     }
 
     /**
-     * Faces the hub, backs up a short distance on {@code deploy/choreo/BackupAndShoot.traj}, then shoots with
-     * first-row preset (2950 RPM / hood 0.4).
+     * Faces the hub, backs up a short distance on {@code deploy/choreo/BackupAndShoot.traj}, then shoots from the
+     * trajectory's {@code AimAndShoot} event using aiming plus distance-based shot preparation.
      */
     private AutoRoutine backupAndShootRoutine() {
         final AutoRoutine routine = autoFactory.newRoutine("Backup and Shoot");
 
         final AutoTrajectory backup = routine.trajectory("BackupAndShoot");
+        final AtomicBoolean aimAndShootEventSeen = new AtomicBoolean(false);
+        final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
 
         routine.active().onTrue(
             Commands.sequence(
@@ -192,20 +195,18 @@ public final class AutoRoutines {
             )
         );
 
-        backup.atTime(0).onTrue(
-            Commands.parallel(
-                shooter.spinUpCommand(PrepareShotCommand.FIRST_ROW_SHOT.shooterRPM),
-                hood.positionCommand(PrepareShotCommand.FIRST_ROW_SHOT.hoodPosition)
-            )
+        backup.atTime("AimAndShoot").onTrue(
+            Commands.runOnce(() -> aimAndShootEventSeen.set(true))
         );
-
-        backup.active().whileTrue(limelight.idle(swerve));
         backup.done().onTrue(
-            subsystemCommands.shootWithPreset(
-                    PrepareShotCommand.FIRST_ROW_SHOT.shooterRPM,
-                    PrepareShotCommand.FIRST_ROW_SHOT.hoodPosition
-                )
-                .withTimeout(20)
+            Commands.either(
+                Commands.sequence(
+                    Commands.run(() -> swerve.setControl(idleRequest), swerve).withTimeout(0.2),
+                    subsystemCommands.aimAndShoot().withTimeout(5)
+                ),
+                Commands.none(),
+                aimAndShootEventSeen::get
+            )
         );
 
         return routine;

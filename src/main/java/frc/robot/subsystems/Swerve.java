@@ -9,6 +9,7 @@ import choreo.Choreo.TrajectoryLogger;
 import choreo.auto.AutoFactory;
 import choreo.trajectory.SwerveSample;
 import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -27,6 +28,8 @@ import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 import java.util.Optional;
 
 public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
+    private static final double kMaxPathFeedbackSpeedMps = 0.35;
+    private static final double kMaxPathFeedbackOmegaRadPerSec = 0.9;
     /* Blue alliance sees forward as 0 degrees (toward red alliance wall) */
     private static final Rotation2d kBlueAlliancePerspectiveRotation = Rotation2d.kZero;
     /* Red alliance sees forward as 180 degrees (toward blue alliance wall) */
@@ -158,15 +161,25 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
         var pose = getState().Pose;
 
         var targetSpeeds = sample.getChassisSpeeds();
-        targetSpeeds.vxMetersPerSecond += pathXController.calculate(
-            pose.getX(), sample.x
+        final double xFeedbackMps = MathUtil.clamp(
+            pathXController.calculate(pose.getX(), sample.x),
+            -kMaxPathFeedbackSpeedMps,
+            kMaxPathFeedbackSpeedMps
         );
-        targetSpeeds.vyMetersPerSecond += pathYController.calculate(
-            pose.getY(), sample.y
+        final double yFeedbackMps = MathUtil.clamp(
+            pathYController.calculate(pose.getY(), sample.y),
+            -kMaxPathFeedbackSpeedMps,
+            kMaxPathFeedbackSpeedMps
         );
-        targetSpeeds.omegaRadiansPerSecond += pathThetaController.calculate(
-            pose.getRotation().getRadians(), sample.heading
+        final double thetaFeedbackRadPerSec = MathUtil.clamp(
+            pathThetaController.calculate(pose.getRotation().getRadians(), sample.heading),
+            -kMaxPathFeedbackOmegaRadPerSec,
+            kMaxPathFeedbackOmegaRadPerSec
         );
+
+        targetSpeeds.vxMetersPerSecond += xFeedbackMps;
+        targetSpeeds.vyMetersPerSecond += yFeedbackMps;
+        targetSpeeds.omegaRadiansPerSecond += thetaFeedbackRadPerSec;
 
         setControl(
             pathFieldSpeedsRequest.withSpeeds(targetSpeeds)
