@@ -12,6 +12,7 @@ import com.ctre.phoenix6.swerve.SwerveRequest.ForwardPerspectiveValue;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants.Driving;
 import frc.robot.Landmarks;
@@ -32,7 +33,7 @@ public class AimAndDriveCommand extends Command {
         .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
         .withSteerRequestType(SteerRequestType.MotionMagicExpo)
         .withForwardPerspective(ForwardPerspectiveValue.OperatorPerspective)
-        .withHeadingPID(2, 0, 0);
+        .withHeadingPID(4, 0, 0);
 
     public AimAndDriveCommand(
         Swerve swerve,
@@ -41,6 +42,8 @@ public class AimAndDriveCommand extends Command {
     ) {
         this.swerve = swerve;
         this.inputSmoother = new DriveInputSmoother(forwardInput, leftInput);
+        SmartDashboard.putNumber("Aim Current Heading (deg)", 0.0);
+        SmartDashboard.putNumber("Aim Target Heading (deg)", 0.0);
         addRequirements(swerve);
     }
 
@@ -69,11 +72,18 @@ public class AimAndDriveCommand extends Command {
     @Override
     public void execute() {
         final ManualDriveInput input = inputSmoother.getSmoothedInput();
+        final Rotation2d targetHeading = getDirectionToHub();
+        final Rotation2d currentHeadingInOperatorPerspective = swerve.getState().Pose.getRotation()
+            .rotateBy(swerve.getOperatorForwardDirection());
+
+        SmartDashboard.putNumber("Aim Current Heading (deg)", currentHeadingInOperatorPerspective.getDegrees());
+        SmartDashboard.putNumber("Aim Target Heading (deg)", targetHeading.getDegrees());
+
         swerve.setControl(
             fieldCentricFacingAngleRequest
                 .withVelocityX(Driving.kMaxSpeed.times(input.forward))
                 .withVelocityY(Driving.kMaxSpeed.times(input.left))
-                .withTargetDirection(getDirectionToHub())
+                .withTargetDirection(targetHeading)
         );
     }
 

@@ -7,11 +7,13 @@ package frc.robot;
 import static edu.wpi.first.units.Units.MetersPerSecond;
 
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants.Driving;
 import frc.robot.commands.AutoRoutines;
 import frc.robot.commands.ManualDriveCommand;
@@ -37,6 +39,14 @@ import frc.util.SwerveTelemetry;
  * subsystems, commands, and trigger mappings) should be declared here.
  */
 public class RobotContainer {
+    private static final Pose2d kBackupAndShootExpectedStartPose = new Pose2d(
+        13.136984825134276,
+        3.964722871780395,
+        Rotation2d.fromRadians(Math.PI)
+    );
+    private static final double kStartPoseReadyTranslationToleranceMeters = 0.10;
+    private static final double kStartPoseReadyHeadingToleranceDegrees = 3.0;
+
     private final Swerve swerve = new Swerve();
     private final IntakePivot intakePivot = new IntakePivot();
     private final IntakeRollers intakeRollers = new IntakeRollers();
@@ -162,5 +172,33 @@ public class RobotContainer {
 
     private Command updateVisionCommand() {
         return limelight.visionUpdateCommand(swerve);
+    }
+
+    public void publishBackupStartPoseDiagnostics() {
+        final Pose2d currentPose = swerve.getState().Pose;
+        final double expectedX = kBackupAndShootExpectedStartPose.getX();
+        final double expectedY = kBackupAndShootExpectedStartPose.getY();
+        final double expectedHeadingDeg = kBackupAndShootExpectedStartPose.getRotation().getDegrees();
+
+        final double errorX = currentPose.getX() - expectedX;
+        final double errorY = currentPose.getY() - expectedY;
+        final double translationError = Math.hypot(errorX, errorY);
+        final double headingErrorDeg = currentPose.getRotation()
+            .minus(kBackupAndShootExpectedStartPose.getRotation())
+            .getDegrees();
+        final double absHeadingErrorDeg = Math.abs(headingErrorDeg);
+
+        SmartDashboard.putNumber("Auto/BackupAndShoot/ExpectedStart/X (m)", expectedX);
+        SmartDashboard.putNumber("Auto/BackupAndShoot/ExpectedStart/Y (m)", expectedY);
+        SmartDashboard.putNumber("Auto/BackupAndShoot/ExpectedStart/Heading (deg)", expectedHeadingDeg);
+        SmartDashboard.putNumber("Auto/BackupAndShoot/StartError/X (m)", errorX);
+        SmartDashboard.putNumber("Auto/BackupAndShoot/StartError/Y (m)", errorY);
+        SmartDashboard.putNumber("Auto/BackupAndShoot/StartError/Translation (m)", translationError);
+        SmartDashboard.putNumber("Auto/BackupAndShoot/StartError/Heading (deg)", headingErrorDeg);
+        SmartDashboard.putBoolean(
+            "Auto/BackupAndShoot/StartPoseReady",
+            translationError <= kStartPoseReadyTranslationToleranceMeters
+                && absHeadingErrorDeg <= kStartPoseReadyHeadingToleranceDegrees
+        );
     }
 }
