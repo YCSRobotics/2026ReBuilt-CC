@@ -109,7 +109,7 @@ public class Limelight extends SubsystemBase {
 
             if (!m_hasInitializedPose) {
                 final PoseEstimate mt1 = LimelightHelpers.getBotPoseEstimate_wpiBlue(name);
-                if (mt1 != null && mt1.tagCount >= 1) {
+                if (mt1 != null && mt1.tagCount >= 2) {
                     swerve.resetPoseAndGyro(mt1.pose);
                     m_hasInitializedPose = true;
                 }
