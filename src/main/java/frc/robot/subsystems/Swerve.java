@@ -85,15 +85,12 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     }
 
     /**
-     * Resets the robot pose and sets the Pigeon 2 yaw to match the pose heading.
-     * Use when the robot is at a known pose (e.g. practice start or auto start).
-     * getPigeon2().setYaw() is called first so the raw gyro heading is correct before
-     * resetPose and resetRotation compute their internal offsets.
+     * Resets the robot pose and heading in the drivetrain estimator.
+     * Uses resetPose() only — calling resetRotation() alongside it causes a double-offset
+     * bug where the heading doubles to 0° for non-zero headings (e.g. Red alliance 180°).
      */
     public void resetPoseAndGyro(Pose2d pose) {
-        getPigeon2().setYaw(pose.getRotation().getDegrees());
         resetPose(pose);
-        resetRotation(pose.getRotation());
     }
 
     /**
