@@ -89,10 +89,16 @@ public class RobotContainer {
         configureManualDriveBindings();
         limelight.setDefaultCommand(updateVisionCommand());
 
-        // On teleop start: if vision never found 2 AprilTags, reset to known starting pose (x=13, y=4, facing hub at 180°).
+        // On teleop start: if vision never found 2 AprilTags, reset to known starting pose based on alliance.
+        // Blue alliance: x=3, y=4, facing 0° (blue hub). Red alliance (or unknown): x=13, y=4, facing 180° (red hub).
         RobotModeTriggers.teleop().onTrue(Commands.runOnce(() -> {
             if (!limelight.hasInitializedPose()) {
-                swerve.resetPoseAndGyro(new Pose2d(13.0, 4.0, Rotation2d.fromDegrees(180.0)));
+                var alliance = DriverStation.getAlliance();
+                if (alliance.isPresent() && alliance.get() == DriverStation.Alliance.Blue) {
+                    swerve.resetPoseAndGyro(new Pose2d(3.0, 4.0, Rotation2d.fromDegrees(0.0)));
+                } else {
+                    swerve.resetPoseAndGyro(new Pose2d(13.0, 4.0, Rotation2d.fromDegrees(180.0)));
+                }
             }
         }));
 
