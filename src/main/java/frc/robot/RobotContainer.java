@@ -89,6 +89,13 @@ public class RobotContainer {
         configureManualDriveBindings();
         limelight.setDefaultCommand(updateVisionCommand());
 
+        // On teleop start: if vision never found 2 AprilTags, reset to known starting pose (x=13, y=4, facing hub at 180°).
+        RobotModeTriggers.teleop().onTrue(Commands.runOnce(() -> {
+            if (!limelight.hasInitializedPose()) {
+                swerve.resetPoseAndGyro(new Pose2d(13.0, 4.0, Rotation2d.fromDegrees(180.0)));
+            }
+        }));
+
         // On enable: home intake pivot (if present) then hanger.
         final Command onEnableCommand = Commands.waitSeconds(0.3).andThen(
             Constants.MechanismPresence.kIntakePivot()

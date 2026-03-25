@@ -132,6 +132,11 @@ public class Limelight extends SubsystemBase {
         return visionUpdateCommand(swerve);
     }
 
+    /** Returns true if vision has already initialized the robot pose from AprilTags. */
+    public boolean hasInitializedPose() {
+        return m_hasInitializedPose;
+    }
+
     public Optional<Measurement> getMeasurement(Pose2d currentRobotPose) {
         LimelightHelpers.SetRobotOrientation(name, currentRobotPose.getRotation().getDegrees(), 0, 0, 0, 0, 0);
 
