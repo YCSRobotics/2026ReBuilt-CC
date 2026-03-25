@@ -31,7 +31,6 @@ public class Limelight extends SubsystemBase {
     private static final double kNoTargetSentinel = -1.0;
 
     private boolean m_hasInitializedPose = false;
-
     private final String name;
     private final NetworkTable telemetryTable;
     private final StructPublisher<Pose2d> posePublisher;
@@ -114,7 +113,6 @@ public class Limelight extends SubsystemBase {
                     m_hasInitializedPose = true;
                 }
             }
-
             final Optional<Measurement> measurement = getMeasurement(currentRobotPose);
             measurement.ifPresent(m -> swerve.addVisionMeasurement(
                 m.poseEstimate.pose,

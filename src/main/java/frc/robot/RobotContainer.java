@@ -123,7 +123,6 @@ public class RobotContainer {
             PrepareShotCommand.THIRD_ROW_SHOT.hoodPosition));
         operator.povUp().onTrue(hanger.positionCommand(Hanger.Position.HANGING));
         operator.povDown().onTrue(hanger.positionCommand(Hanger.Position.HUNG));
-
         // Driver: intake only (pivot + rollers on left trigger, stow on left bumper).
         if (Constants.MechanismPresence.kIntakePivot()) {
             driver.leftTrigger().debounce(0.15).whileTrue(

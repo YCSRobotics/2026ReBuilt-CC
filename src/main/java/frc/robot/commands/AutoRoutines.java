@@ -71,6 +71,7 @@ public final class AutoRoutines {
         autoChooser.addRoutine("Outpost and Shoot", this::outpostAndShootRoutine);
         autoChooser.addRoutine("Bump to Collect Fuel", this::bumpToCollectFuelRoutine);
         autoChooser.addRoutine("Backup and Shoot", this::backupAndShootRoutine);
+        autoChooser.addRoutine("Back Aim and Shoot", this::backAimAndShootRoutine);
         SmartDashboard.putBoolean("Auto Chooser Published", true);
         SmartDashboard.putString("Auto Chooser Debug", "AutoRoutines.configure() ran");
         SmartDashboard.putData("Auto Chooser", autoChooser);
@@ -178,13 +179,39 @@ public final class AutoRoutines {
     }
 
     /**
-     * Faces the hub, backs up a short distance on {@code deploy/choreo/BackupAndShoot.traj}, then shoots from the
-     * trajectory's {@code AimAndShoot} event using aiming plus distance-based shot preparation.
+     * Backs up a short distance on {@code deploy/choreo/BackupShoot.traj}, then shoots using the
+     * fixed mid-row preset values from the shot table.
      */
     private AutoRoutine backupAndShootRoutine() {
         final AutoRoutine routine = autoFactory.newRoutine("Backup and Shoot");
+        final AutoTrajectory backup = routine.trajectory("BackupShoot");
 
-        final AutoTrajectory backup = routine.trajectory("BackupAndShoot");
+        routine.active().onTrue(
+            Commands.sequence(
+                backup.resetOdometry(),
+                backup.cmd()
+            )
+        );
+
+        backup.done().onTrue(
+            subsystemCommands.shootWithPreset(
+                    PrepareShotCommand.MID_ROW_SHOT.shooterRPM,
+                    PrepareShotCommand.MID_ROW_SHOT.hoodPosition
+                )
+                .withTimeout(10)
+        );
+
+        return routine;
+    }
+
+    /**
+     * Backs up on {@code deploy/choreo/BackAimShoot.traj}, then at the trajectory's
+     * {@code AimAndShoot} event uses aiming plus distance-based shot preparation.
+     */
+    private AutoRoutine backAimAndShootRoutine() {
+        final AutoRoutine routine = autoFactory.newRoutine("Back Aim and Shoot");
+
+        final AutoTrajectory backup = routine.trajectory("BackAimShoot");
         final AtomicBoolean aimAndShootEventSeen = new AtomicBoolean(false);
         final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
 

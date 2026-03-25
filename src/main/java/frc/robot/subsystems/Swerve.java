@@ -89,8 +89,8 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
      * Use when the robot is at a known pose (e.g. practice start or auto start).
      */
     public void resetPoseAndGyro(Pose2d pose) {
-        resetRotation(pose.getRotation());
         resetPose(pose);
+        resetRotation(pose.getRotation());
     }
 
     /**
