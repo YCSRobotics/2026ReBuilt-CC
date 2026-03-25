@@ -30,6 +30,8 @@ import frc.robot.LimelightHelpers.RawFiducial;
 public class Limelight extends SubsystemBase {
     private static final double kNoTargetSentinel = -1.0;
 
+    private boolean m_hasInitializedPose = false;
+
     private final String name;
     private final NetworkTable telemetryTable;
     private final StructPublisher<Pose2d> posePublisher;
@@ -104,6 +106,14 @@ public class Limelight extends SubsystemBase {
             final Translation2d hubPosition = Landmarks.hubPosition();
             final Distance distanceToHub = Meters.of(robotPosition.getDistance(hubPosition));
             SmartDashboard.putNumber("Distance to Hub (inches)", distanceToHub.in(Inches));
+
+            if (!m_hasInitializedPose) {
+                final PoseEstimate mt1 = LimelightHelpers.getBotPoseEstimate_wpiBlue(name);
+                if (mt1 != null && mt1.tagCount >= 1) {
+                    swerve.resetPoseAndGyro(mt1.pose);
+                    m_hasInitializedPose = true;
+                }
+            }
 
             final Optional<Measurement> measurement = getMeasurement(currentRobotPose);
             measurement.ifPresent(m -> swerve.addVisionMeasurement(
