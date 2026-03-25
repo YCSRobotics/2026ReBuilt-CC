@@ -48,6 +48,7 @@ public class SwerveTelemetry {
     private final StructArrayPublisher<SwerveModulePosition> driveModulePositions = driveStateTable.getStructArrayTopic("ModulePositions", SwerveModulePosition.struct).publish();
     private final DoublePublisher driveTimestamp = driveStateTable.getDoubleTopic("Timestamp").publish();
     private final DoublePublisher driveOdometryFrequency = driveStateTable.getDoubleTopic("OdometryFrequency").publish();
+    private final DoublePublisher driveHeadingDeg = driveStateTable.getDoubleTopic("Heading (deg)").publish();
 
     /* Robot pose for field positioning */
     private final NetworkTable table = inst.getTable("Pose");
@@ -92,6 +93,7 @@ public class SwerveTelemetry {
         driveModulePositions.set(state.ModulePositions);
         driveTimestamp.set(state.Timestamp);
         driveOdometryFrequency.set(1.0 / state.OdometryPeriod);
+        driveHeadingDeg.set(state.Pose.getRotation().getDegrees());
 
         /* Telemeterize the pose to a Field2d */
         fieldTypePub.set("Field2d");
