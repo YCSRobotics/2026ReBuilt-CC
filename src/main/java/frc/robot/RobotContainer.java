@@ -115,6 +115,7 @@ public class RobotContainer {
         RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop()).onTrue(onEnableCommand);
 
         // Operator: aim-and-shoot, manual shoot (dashboard RPM), and manual shoot presets (Y / X / A = table rows).
+        operator.leftTrigger().whileTrue(subsystemCommands.aimOnly());
         operator.rightTrigger().whileTrue(subsystemCommands.aimAndShoot());
         operator.rightBumper().whileTrue(subsystemCommands.shootManually());
         operator.y().whileTrue(subsystemCommands.shootWithPreset(
@@ -123,6 +124,9 @@ public class RobotContainer {
         operator.x().whileTrue(subsystemCommands.shootWithPreset(
             PrepareShotCommand.X_KEY_SHOT.shooterRPM,
             PrepareShotCommand.X_KEY_SHOT.hoodPosition));
+        operator.b().whileTrue(subsystemCommands.shootWithPreset(
+            PrepareShotCommand.B_KEY_SHOT.shooterRPM,
+            PrepareShotCommand.B_KEY_SHOT.hoodPosition));
         operator.a().whileTrue(subsystemCommands.shootWithPreset(
             PrepareShotCommand.A_KEY_SHOT.shooterRPM,
             PrepareShotCommand.A_KEY_SHOT.hoodPosition));

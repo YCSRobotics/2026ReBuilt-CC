@@ -88,6 +88,10 @@ public final class SubsystemCommands {
         );
     }
 
+    public Command aimOnly() {
+        return new AimAndDriveCommand(swerve, forwardInput, leftInput);
+    }
+
     /**
      * Shoot at a fixed preset (e.g. mid-table) without any aiming/driving.
      * Waits for the drivetrain to be stopped before starting the feeder/floor.
