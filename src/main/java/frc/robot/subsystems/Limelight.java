@@ -113,11 +113,18 @@ public class Limelight extends SubsystemBase {
                     m_hasInitializedPose = true;
                 }
             }
+            // Always run vision, but reject any measurement captured before the last pose reset.
+            // This prevents stale 0° measurements (from before teleop/auto pose init) from
+            // overwriting the correct heading after resetPoseAndGyro() is called.
             final Optional<Measurement> measurement = getMeasurement(currentRobotPose);
-            measurement.ifPresent(m -> swerve.addVisionMeasurement(
-                m.poseEstimate.pose,
-                m.poseEstimate.timestampSeconds,
-                m.standardDeviations));
+            measurement.ifPresent(m -> {
+                if (m.poseEstimate.timestampSeconds > swerve.getLastPoseResetTimestamp()) {
+                    swerve.addVisionMeasurement(
+                        m.poseEstimate.pose,
+                        m.poseEstimate.timestampSeconds,
+                        m.standardDeviations);
+                }
+            });
         })
             .ignoringDisable(true);
     }

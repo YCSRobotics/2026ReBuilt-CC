@@ -37,6 +37,7 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     /* Keep track if we've ever applied the operator perspective before or not */
     private boolean m_hasAppliedOperatorPerspective = false;
     private Alliance m_lastOperatorPerspectiveAlliance = null;
+    private double m_lastPoseResetTimestamp = 0.0;
 
     /** Swerve request to apply during field-centric path following */
     private final SwerveRequest.ApplyFieldSpeeds pathFieldSpeedsRequest = new SwerveRequest.ApplyFieldSpeeds();
@@ -90,7 +91,13 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
      * bug where the heading doubles to 0° for non-zero headings (e.g. Red alliance 180°).
      */
     public void resetPoseAndGyro(Pose2d pose) {
+        m_lastPoseResetTimestamp = Utils.getCurrentTimeSeconds();
         resetPose(pose);
+    }
+
+    /** Returns the timestamp (seconds) of the most recent pose reset. Used by Limelight to reject stale measurements. */
+    public double getLastPoseResetTimestamp() {
+        return m_lastPoseResetTimestamp;
     }
 
     /**
