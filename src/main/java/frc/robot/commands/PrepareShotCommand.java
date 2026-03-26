@@ -46,10 +46,14 @@ public class PrepareShotCommand extends Command {
     /** First row of the distance→shot table: 30 in → 2800 RPM, hood 0.3. Use for manual preset shoot (Operator Y). */
     public static final Shot AUTO_ROW_SHOT = new Shot(3100, 0.4);
 
+    // Offset from front-of-robot to front-of-hub measurement to center-to-center (what the code measures).
+    // Hub radius = 23 in, robot center to front bumper = 17.5 in → total offset = 40.5 in.
+    private static final double kShotDistanceOffsetInches = 40.5;
+
     static {
-        distanceToShotMap.put(Inches.of(30.0), FIRST_ROW_SHOT);
-        distanceToShotMap.put(Inches.of(83.0), MID_ROW_SHOT);
-        distanceToShotMap.put(Inches.of(141.0), THIRD_ROW_SHOT);
+        distanceToShotMap.put(Inches.of(30.0 + kShotDistanceOffsetInches), FIRST_ROW_SHOT);
+        distanceToShotMap.put(Inches.of(83.0 + kShotDistanceOffsetInches), MID_ROW_SHOT);
+        distanceToShotMap.put(Inches.of(141.0 + kShotDistanceOffsetInches), THIRD_ROW_SHOT);
     }
 
     private final Shooter shooter;
