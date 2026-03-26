@@ -34,7 +34,7 @@ public class PrepareShotCommand extends Command {
     /** First row of the distance→shot table: 30 in → 2800 RPM, hood 0.3. Use for manual preset shoot (Operator Y). */
     public static final Shot FIRST_ROW_SHOT = new Shot(2800, 0.3);
     /** Mid row: 83 in → 3500 RPM, hood 0.5 (Operator X). */
-    public static final Shot MID_ROW_SHOT = new Shot(3500, 0.5);
+    public static final Shot MID_ROW_SHOT = new Shot(3400, 0.5);
     /** Third row: 141 in → 3800 RPM, hood 0.7 (Operator A). */
     public static final Shot THIRD_ROW_SHOT = new Shot(3800, 0.7);
 
