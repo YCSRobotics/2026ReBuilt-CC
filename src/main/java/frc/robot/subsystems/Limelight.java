@@ -113,10 +113,13 @@ public class Limelight extends SubsystemBase {
                     m_hasInitializedPose = true;
                 }
             }
+
             // Always run vision, but reject any measurement captured before the last pose reset.
             // This prevents stale 0° measurements (from before teleop/auto pose init) from
             // overwriting the correct heading after resetPoseAndGyro() is called.
-            final Optional<Measurement> measurement = getMeasurement(currentRobotPose);
+            final double yawDeg = swerve.getPigeon2().getYaw().getValueAsDouble();
+            final double yawRateDegPerSec = Math.toDegrees(swerve.getState().Speeds.omegaRadiansPerSecond);
+            final Optional<Measurement> measurement = getMeasurement(currentRobotPose, yawDeg, yawRateDegPerSec);
             measurement.ifPresent(m -> {
                 if (m.poseEstimate.timestampSeconds > swerve.getLastPoseResetTimestamp()) {
                     swerve.addVisionMeasurement(
@@ -142,13 +145,20 @@ public class Limelight extends SubsystemBase {
         return m_hasInitializedPose;
     }
 
-    public Optional<Measurement> getMeasurement(Pose2d currentRobotPose) {
-        LimelightHelpers.SetRobotOrientation(name, currentRobotPose.getRotation().getDegrees(), 0, 0, 0, 0, 0);
+    public Optional<Measurement> getMeasurement(Pose2d currentRobotPose, double yawDeg, double yawRateDegPerSec) {
+        // MegaTag2 uses yaw/yawRate as IMU inputs for localization fusion.
+        LimelightHelpers.SetRobotOrientation(
+            name,
+            yawDeg,
+            yawRateDegPerSec,
+            0, 0,
+            0, 0
+        );
 
         final PoseEstimate poseEstimate_MegaTag1 = LimelightHelpers.getBotPoseEstimate_wpiBlue(name);
         final PoseEstimate poseEstimate_MegaTag2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(name);
         if (
-            poseEstimate_MegaTag1 == null 
+            poseEstimate_MegaTag1 == null
                 || poseEstimate_MegaTag2 == null
                 || poseEstimate_MegaTag1.tagCount == 0
                 || poseEstimate_MegaTag2.tagCount == 0

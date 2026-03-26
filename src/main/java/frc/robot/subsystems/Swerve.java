@@ -106,14 +106,11 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
      * opposing alliance wall so field-centric and aim-to-shoot use the correct reference.
      */
     public void resetHeadingToAllianceForward() {
-        final Pose2d current = getState().Pose;
-        final Translation2d position = current.getTranslation();
         final Rotation2d allianceForward = DriverStation.getAlliance()
             .orElse(Alliance.Blue) == Alliance.Red
             ? kRedAlliancePerspectiveRotation
             : kBlueAlliancePerspectiveRotation;
-        resetPose(new Pose2d(position, allianceForward));
-        resetRotation(allianceForward);
+        resetPoseAndGyro(new Pose2d(getState().Pose.getTranslation(), allianceForward));
     }
 
     /**
