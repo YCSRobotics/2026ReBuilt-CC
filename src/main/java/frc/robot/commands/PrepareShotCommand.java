@@ -37,6 +37,8 @@ public class PrepareShotCommand extends Command {
     public static final Shot MID_ROW_SHOT = new Shot(3400, 0.5);
     /** Third row: 141 in → 3800 RPM, hood 0.7 (Operator A). */
     public static final Shot THIRD_ROW_SHOT = new Shot(3800, 0.7);
+    /** First row of the distance→shot table: 30 in → 2800 RPM, hood 0.3. Use for manual preset shoot (Operator Y). */
+    public static final Shot AUTO_ROW_SHOT = new Shot(3100, 0.3);
 
     static {
         distanceToShotMap.put(Inches.of(30.0), FIRST_ROW_SHOT);

@@ -195,8 +195,8 @@ public final class AutoRoutines {
 
         backup.done().onTrue(
             subsystemCommands.shootWithPreset(
-                    PrepareShotCommand.MID_ROW_SHOT.shooterRPM,
-                    PrepareShotCommand.MID_ROW_SHOT.hoodPosition
+                    PrepareShotCommand.AUTO_ROW_SHOT.shooterRPM,
+                    PrepareShotCommand.AUTO_ROW_SHOT.hoodPosition
                 )
                 .withTimeout(10)
         );
