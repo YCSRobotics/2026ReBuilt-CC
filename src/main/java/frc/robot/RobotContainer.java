@@ -114,7 +114,9 @@ public class RobotContainer {
                 : hanger.homingCommand());
         RobotModeTriggers.autonomous().or(RobotModeTriggers.teleop()).onTrue(onEnableCommand);
 
-        // Operator: aim-and-shoot, manual shoot (dashboard RPM), and manual shoot presets (Y / X / A = table rows).
+        // Operator: aim-only (left trigger), aim-and-shoot (right trigger), manual shoot (right bumper, dashboard RPM),
+        // and manual shoot presets (Y / X / A = table rows).
+        operator.leftTrigger().whileTrue(subsystemCommands.aimOnly());
         operator.rightTrigger().whileTrue(subsystemCommands.aimAndShoot());
         operator.rightBumper().whileTrue(subsystemCommands.shootManually());
         operator.y().whileTrue(subsystemCommands.shootWithPreset(
