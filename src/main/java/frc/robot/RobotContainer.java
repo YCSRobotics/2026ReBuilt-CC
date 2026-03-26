@@ -6,8 +6,15 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.MetersPerSecond;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.Filesystem;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -39,11 +46,6 @@ import frc.util.SwerveTelemetry;
  * subsystems, commands, and trigger mappings) should be declared here.
  */
 public class RobotContainer {
-    private static final Pose2d kBackupAndShootExpectedStartPose = new Pose2d(
-        13.136984825134276,
-        3.964722871780395,
-        Rotation2d.fromRadians(Math.PI)
-    );
     private static final double kStartPoseReadyTranslationToleranceMeters = 0.10;
     private static final double kStartPoseReadyHeadingToleranceDegrees = 3.0;
 
@@ -61,6 +63,8 @@ public class RobotContainer {
     
     private final CommandXboxController driver = new CommandXboxController(0);
     private final CommandXboxController operator = new CommandXboxController(1);
+    private final Pose2d backupAndShootExpectedStartPose = loadExpectedStartPoseFromTrajectory("BackupShoot")
+        .orElse(new Pose2d());
 
     private final AutoRoutines autoRoutines = new AutoRoutines(swerve, intakePivot, intakeRollers, floor, feeder, shooter, hood, hanger, limelight);
     private final SubsystemCommands subsystemCommands = new SubsystemCommands(
@@ -186,17 +190,40 @@ public class RobotContainer {
         return limelight.visionUpdateCommand(swerve);
     }
 
+    private java.util.Optional<Pose2d> loadExpectedStartPoseFromTrajectory(String trajectoryName) {
+        final Path trajPath = Filesystem.getDeployDirectory()
+            .toPath()
+            .resolve("choreo")
+            .resolve(trajectoryName + ".traj");
+        try {
+            final String json = Files.readString(trajPath);
+            final JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+            final JsonArray waypoints = root.getAsJsonObject("snapshot").getAsJsonArray("waypoints");
+            if (waypoints == null || waypoints.isEmpty()) {
+                return java.util.Optional.empty();
+            }
+            final JsonObject first = waypoints.get(0).getAsJsonObject();
+            final double x = first.get("x").getAsDouble();
+            final double y = first.get("y").getAsDouble();
+            final double headingRad = first.get("heading").getAsDouble();
+            return java.util.Optional.of(new Pose2d(x, y, Rotation2d.fromRadians(headingRad)));
+        } catch (IOException | IllegalStateException | UnsupportedOperationException ex) {
+            SmartDashboard.putString("Auto/BackupAndShoot/ExpectedStart/LoadError", ex.getMessage());
+            return java.util.Optional.empty();
+        }
+    }
+
     public void publishBackupStartPoseDiagnostics() {
         final Pose2d currentPose = swerve.getState().Pose;
-        final double expectedX = kBackupAndShootExpectedStartPose.getX();
-        final double expectedY = kBackupAndShootExpectedStartPose.getY();
-        final double expectedHeadingDeg = kBackupAndShootExpectedStartPose.getRotation().getDegrees();
+        final double expectedX = backupAndShootExpectedStartPose.getX();
+        final double expectedY = backupAndShootExpectedStartPose.getY();
+        final double expectedHeadingDeg = backupAndShootExpectedStartPose.getRotation().getDegrees();
 
         final double errorX = currentPose.getX() - expectedX;
         final double errorY = currentPose.getY() - expectedY;
         final double translationError = Math.hypot(errorX, errorY);
         final double headingErrorDeg = currentPose.getRotation()
-            .minus(kBackupAndShootExpectedStartPose.getRotation())
+            .minus(backupAndShootExpectedStartPose.getRotation())
             .getDegrees();
         final double absHeadingErrorDeg = Math.abs(headingErrorDeg);
 
