@@ -19,6 +19,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants.Driving;
@@ -117,14 +118,14 @@ public class RobotContainer {
         operator.rightTrigger().whileTrue(subsystemCommands.aimAndShoot());
         operator.rightBumper().whileTrue(subsystemCommands.shootManually());
         operator.y().whileTrue(subsystemCommands.shootWithPreset(
-            PrepareShotCommand.FIRST_ROW_SHOT.shooterRPM,
-            PrepareShotCommand.FIRST_ROW_SHOT.hoodPosition));
+            PrepareShotCommand.Y_KEY_SHOT.shooterRPM,
+            PrepareShotCommand.Y_KEY_SHOT.hoodPosition));
         operator.x().whileTrue(subsystemCommands.shootWithPreset(
-            PrepareShotCommand.MID_ROW_SHOT.shooterRPM,
-            PrepareShotCommand.MID_ROW_SHOT.hoodPosition));
+            PrepareShotCommand.X_KEY_SHOT.shooterRPM,
+            PrepareShotCommand.X_KEY_SHOT.hoodPosition));
         operator.a().whileTrue(subsystemCommands.shootWithPreset(
-            PrepareShotCommand.THIRD_ROW_SHOT.shooterRPM,
-            PrepareShotCommand.THIRD_ROW_SHOT.hoodPosition));
+            PrepareShotCommand.A_KEY_SHOT.shooterRPM,
+            PrepareShotCommand.A_KEY_SHOT.hoodPosition));
         operator.povUp().onTrue(hanger.positionCommand(Hanger.Position.HANGING));
         operator.povDown().onTrue(hanger.positionCommand(Hanger.Position.HUNG));
         // Driver: intake only (pivot + rollers on left trigger, stow on left bumper).
