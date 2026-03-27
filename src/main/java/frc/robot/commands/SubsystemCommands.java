@@ -83,7 +83,11 @@ public final class SubsystemCommands {
         return Commands.parallel(
             aimAndDriveCommand,
             prepareShotCommand,
-            Commands.waitUntil(() -> aimAndDriveCommand.isAimed() && prepareShotCommand.isReadyToShoot() && swerve.isStopped())
+            // Do not require isStopped(): that includes omega≈0 and fights FieldCentricFacingAngle while aiming.
+            Commands.waitUntil(
+                    () -> aimAndDriveCommand.isAimed()
+                        && prepareShotCommand.isReadyToShoot()
+                        && swerve.isTranslationStopped())
                 .andThen(feed())
         );
     }

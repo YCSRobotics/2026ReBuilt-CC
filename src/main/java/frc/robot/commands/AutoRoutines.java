@@ -126,31 +126,29 @@ public final class AutoRoutines {
     }
 
     /**
-     * Outpost and Shoot: start (Waypoint 1) → outpost (stop for human feed) → Waypoint 3 (shoot and stop).
-     * Uses deploy/choreo/OutpostAndShoot.traj (segment 0: start→outpost, segment 1: outpost→shoot pose).
+     * Outpost and Shoot: Waypoint 1 → Waypoint 2 (segment 0), stop, pivot to intake, wait 2 s, then
+     * Waypoint 3 (segment 1) and shoot.
+     * Uses deploy/choreo/OutpostAndShoot.traj (segment 0: W1→W2, segment 1: W2→W3).
      */
     private AutoRoutine outpostAndShootRoutine() {
         final AutoRoutine routine = autoFactory.newRoutine("Outpost and Shoot");
         final AutoTrajectory startToOutpost = routine.trajectory("OutpostAndShoot", 0);
         final AutoTrajectory outpostToShootPose = routine.trajectory("OutpostAndShoot", 1);
-        final double waitAtWaypoint2Seconds = 10.0;
+        final double pauseAtWaypoint2Seconds = 2.0;
         final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
 
         routine.active().onTrue(
             Commands.sequence(
                 startToOutpost.resetOdometry(),
                 startToOutpost.cmd(),
-                // Wait while the drivetrain is stopped at the trajectory split point
-                // (requires split=true on the waypoint you want to pause at).
-                // Hold swerve idle so the default manual-drive command can't "take over"
-                // and cause the robot to creep/back-and-forth during the human-feed pause.
-                Commands.parallel(
-                    Commands.run(() -> swerve.setControl(idleRequest), swerve)
-                        .withTimeout(waitAtWaypoint2Seconds),
-                    // Human feeds balls during the waypoint-2 pause.
-                    // IntakeCommands stops rollers on end; pivot setpoint stays at INTAKE.
-                    IntakeCommands.intakeCommand(intakePivot, intakeRollers)
-                        .withTimeout(waitAtWaypoint2Seconds)
+                // Waypoint 2: pivot to intake, then hold swerve idle for a full 2 s.
+                // deadline(waitSeconds) sets the duration; idle run is cancelled when the wait ends.
+                Commands.sequence(
+                    intakePivot.runOnce(() -> intakePivot.set(IntakePivot.Position.INTAKE)),
+                    Commands.deadline(
+                        Commands.waitSeconds(pauseAtWaypoint2Seconds),
+                        Commands.run(() -> swerve.setControl(idleRequest), swerve)
+                    )
                 ),
                 outpostToShootPose.cmd()
             )

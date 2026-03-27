@@ -137,6 +137,18 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     }
 
     /**
+     * True when translational velocity is near zero (does not check omega).
+     * Use with aim-and-drive: aiming requires rotation; gating on {@link #isStopped()} fights the
+     * heading controller and causes jerk/hunting near the hub.
+     */
+    public boolean isTranslationStopped() {
+        final ChassisSpeeds s = getState().Speeds;
+        final double linearToleranceMps = 0.05;
+        return Math.abs(s.vxMetersPerSecond) < linearToleranceMps
+            && Math.abs(s.vyMetersPerSecond) < linearToleranceMps;
+    }
+
+    /**
      * Returns a command that applies the specified control request to this swerve drivetrain.
      *
      * @param request Function returning the request to apply
