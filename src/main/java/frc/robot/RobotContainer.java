@@ -116,7 +116,7 @@ public class RobotContainer {
 
         // Operator: aim-only (left trigger), aim-and-shoot (right trigger), manual shoot (right bumper, dashboard RPM),
         // and manual shoot presets (Y / X / A / B = table rows).
-        operator.leftTrigger().whileTrue(subsystemCommands.aimOnly());
+        operator.leftTrigger(0.2).whileTrue(Commands.deferredProxy(() -> subsystemCommands.aimOnly()));
         operator.rightTrigger().whileTrue(subsystemCommands.aimAndShoot());
         operator.rightBumper().whileTrue(subsystemCommands.shootManually());
         operator.y().whileTrue(subsystemCommands.shootWithPreset(
