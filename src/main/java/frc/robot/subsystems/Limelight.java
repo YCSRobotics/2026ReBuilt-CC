@@ -66,6 +66,11 @@ public class Limelight extends SubsystemBase {
 
     @Override
     public void periodic() {
+        // Hub used for aim/distance (Landmarks); publish so DS / AdvantageScope can verify Red vs Blue selection.
+        final Translation2d hubField = Landmarks.hubPosition();
+        SmartDashboard.putNumber("Hub X (m)", hubField.getX());
+        SmartDashboard.putNumber("Hub Y (m)", hubField.getY());
+
         // Publish vision-based distance to AprilTag for dashboard and Elastic (always publish so keys exist in NT)
         final RawFiducial[] fiducials = LimelightHelpers.getRawFiducials(name);
         if (fiducials != null && fiducials.length > 0) {

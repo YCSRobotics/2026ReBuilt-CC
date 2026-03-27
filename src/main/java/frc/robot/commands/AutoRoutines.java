@@ -126,7 +126,7 @@ public final class AutoRoutines {
     }
 
     /**
-     * Outpost and Shoot: Waypoint 1 → Waypoint 2 (segment 0), stop, pivot to intake, wait 2 s, then
+     * Outpost and Shoot: Waypoint 1 → Waypoint 2 (segment 0), stop, pivot to intake, wait 5 s, then
      * Waypoint 3 (segment 1) and shoot.
      * Uses deploy/choreo/OutpostAndShoot.traj (segment 0: W1→W2, segment 1: W2→W3).
      */
@@ -134,14 +134,14 @@ public final class AutoRoutines {
         final AutoRoutine routine = autoFactory.newRoutine("Outpost and Shoot");
         final AutoTrajectory startToOutpost = routine.trajectory("OutpostAndShoot", 0);
         final AutoTrajectory outpostToShootPose = routine.trajectory("OutpostAndShoot", 1);
-        final double pauseAtWaypoint2Seconds = 2.0;
+        final double pauseAtWaypoint2Seconds = 5.0;
         final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
 
         routine.active().onTrue(
             Commands.sequence(
                 startToOutpost.resetOdometry(),
                 startToOutpost.cmd(),
-                // Waypoint 2: pivot to intake, then hold swerve idle for a full 2 s.
+                // Waypoint 2: pivot to intake, then hold swerve idle for a full 5 s.
                 // deadline(waitSeconds) sets the duration; idle run is cancelled when the wait ends.
                 Commands.sequence(
                     intakePivot.runOnce(() -> intakePivot.set(IntakePivot.Position.INTAKE)),
@@ -163,8 +163,7 @@ public final class AutoRoutines {
         );
         outpostToShootPose.active().whileTrue(limelight.idle(swerve));
 
-        // When waypoint-3 is complete, shoot even if the robot hasn't fully reached `swerve.isStopped()`
-        // (that gate can be too strict when the drivetrain is still settling).
+        // When waypoint-3 is complete, shoot (fixed preset; no drivetrain stop gate).
         outpostToShootPose.done().onTrue(
             subsystemCommands.shootWithPreset(
                     PrepareShotCommand.MID_ROW_SHOT.shooterRPM,
