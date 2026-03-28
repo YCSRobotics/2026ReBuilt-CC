@@ -38,7 +38,7 @@ public class PrepareShotCommand extends Command {
     /** Third row: 141 in → 3800 RPM, hood 0.7 (Operator A). */
     public static final Shot THIRD_ROW_SHOT = new Shot(3800, 0.7);
     /** Y key of the distance→shot table: 30 in → 2800 RPM, hood 0.3. Use for manual preset shoot (Operator Y). */
-    public static final Shot Y_KEY_SHOT = new Shot(2800, 0.3);
+    public static final Shot Y_KEY_SHOT = new Shot(2850, 0.3);
     /** X key 83 in → 3500 RPM, hood 0.5 (Operator X). */
     public static final Shot X_KEY_SHOT = new Shot(3400, 0.5);
     /** B key 83 in → 3500 RPM, hood 0.5 (Operator X). */
@@ -46,11 +46,11 @@ public class PrepareShotCommand extends Command {
     /** A key 141 in → 3800 RPM, hood 0.7 (Operator A). */
     public static final Shot A_KEY_SHOT = new Shot(3800, 0.7);
     /** Auto of the distance→shot table: 30 in → 2800 RPM, hood 0.3. Use for manual preset shoot (Operator Y). */
-    public static final Shot AUTO_ROW_SHOT = new Shot(3100, 0.4);
+    public static final Shot AUTO_ROW_SHOT = new Shot(3150, 0.4);
 
     // Offset from front-of-robot to front-of-hub measurement to center-to-center (what the code measures).
     // Hub radius = 23 in, robot center to front bumper = 17.5 in → total offset = 40.5 in.
-    private static final double kShotDistanceOffsetInches = 40.5;
+    private static final double kShotDistanceOffsetInches = 23;
 
     static {
         distanceToShotMap.put(Inches.of(30.0 + kShotDistanceOffsetInches), FIRST_ROW_SHOT);

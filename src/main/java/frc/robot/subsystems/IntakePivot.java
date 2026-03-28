@@ -67,7 +67,7 @@ public class IntakePivot extends SubsystemBase {
     private static final double kCruiseVelRPM = Neo2.kFreeSpeed.in(RPM);
     /** Base MAXMotion accel (motor RPM/s); multiply for snappier ramps (current limit still applies). */
     private static final double kMaxAccelRPMPerSecBase = 2000.0;
-    private static final double kAccelMultiplier = 2.0;
+    private static final double kAccelMultiplier = 2.5;
     private static final double kMaxAccelRPMPerSec = kMaxAccelRPMPerSecBase * kAccelMultiplier;
     /**
      * Fraction of full-scale kV (12 V at Neo free speed). Higher = stronger velocity feedforward.
