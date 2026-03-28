@@ -54,29 +54,23 @@ public class AimAndDriveCommand extends Command {
     public boolean isAimed() {
         final Rotation2d targetHeading = fieldCentricFacingAngleRequest.TargetDirection;
         final Rotation2d currentHeadingInBlueAlliancePerspective = swerve.getState().Pose.getRotation();
-        final Rotation2d currentHeadingInOperatorPerspective = currentHeadingInBlueAlliancePerspective.rotateBy(swerve.getOperatorForwardDirection());
-        return GeometryUtil.isNear(targetHeading, currentHeadingInOperatorPerspective, kAimTolerance);
+        return GeometryUtil.isNear(targetHeading, currentHeadingInBlueAlliancePerspective, kAimTolerance);
     }
 
-    /**
-     * Direction to hub for TargetDirection. Kept in same frame as swerve operator perspective
-     * (field angle rotated by getOperatorForwardDirection()) to avoid heading PID fighting from frame mismatch.
-     */
     private Rotation2d getDirectionToHub() {
         final Translation2d hubPosition = Landmarks.hubPosition();
         final Translation2d robotPosition = swerve.getState().Pose.getTranslation();
         final Rotation2d hubDirectionInBlueAlliancePerspective = hubPosition.minus(robotPosition).getAngle();
-        return hubDirectionInBlueAlliancePerspective; // .rotateBy(swerve.getOperatorForwardDirection())
+        return hubDirectionInBlueAlliancePerspective;
     }
 
     @Override
     public void execute() {
         final ManualDriveInput input = inputSmoother.getSmoothedInput();
         final Rotation2d targetHeading = getDirectionToHub();
-        final Rotation2d currentHeadingInOperatorPerspective = swerve.getState().Pose.getRotation()
-            .rotateBy(swerve.getOperatorForwardDirection());
+        final Rotation2d currentHeading = swerve.getState().Pose.getRotation();
 
-        SmartDashboard.putNumber("Aim Current Heading (deg)", currentHeadingInOperatorPerspective.getDegrees());
+        SmartDashboard.putNumber("Aim Current Heading (deg)", currentHeading.getDegrees());
         SmartDashboard.putNumber("Aim Target Heading (deg)", targetHeading.getDegrees());
 
         swerve.setControl(
