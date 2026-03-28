@@ -9,16 +9,21 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 
+import java.util.Optional;
+
 public class Landmarks {
     private static final Translation2d kBlueHubPosition =
         new Translation2d(Inches.of(182.105), Inches.of(158.845));
     private static final Translation2d kRedHubPosition =
         new Translation2d(Inches.of(469.115), Inches.of(158.845));
 
-    /** Blue hub (near origin); Red hub (far end). When no FMS, defaults to Blue. */
+    /**
+     * Blue hub (near origin); Red hub (far end).
+     * WCP CC convention: only explicit Blue selects blue hub; unknown alliance uses Red hub (matches teleop fallback).
+     */
     public static Translation2d hubPosition() {
-        final Alliance alliance = DriverStation.getAlliance().orElse(Alliance.Blue);
-        if (alliance == Alliance.Blue) {
+        final Optional<Alliance> alliance = DriverStation.getAlliance();
+        if (alliance.isPresent() && alliance.get() == Alliance.Blue) {
             return kBlueHubPosition;
         }
         return kRedHubPosition;
@@ -35,12 +40,13 @@ public class Landmarks {
 
     /** Full pose (x, y, heading) for practice start. Alliance from DS (FMS or manual). */
     public static Pose2d practiceInitialPose() {
-        final Alliance alliance = DriverStation.getAlliance().orElse(Alliance.Blue);
+        final Optional<Alliance> allianceOpt = DriverStation.getAlliance();
+        final boolean isBlue = allianceOpt.isPresent() && allianceOpt.get() == Alliance.Blue;
         final Translation2d hub = hubPosition();
         final double offsetMeters = Inches.of(kPracticeOffsetFromHubInches).in(Meters);
         final Translation2d position;
         final Rotation2d heading;
-        if (alliance == Alliance.Blue) {
+        if (isBlue) {
             position = hub.plus(new Translation2d(-offsetMeters, 0));
             heading = Rotation2d.kZero;
         } else {

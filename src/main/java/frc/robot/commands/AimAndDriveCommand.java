@@ -66,7 +66,9 @@ public class AimAndDriveCommand extends Command {
         final Translation2d hubPosition = Landmarks.hubPosition();
         final Translation2d robotPosition = swerve.getState().Pose.getTranslation();
         final Rotation2d hubDirectionInBlueAlliancePerspective = hubPosition.minus(robotPosition).getAngle();
-        return hubDirectionInBlueAlliancePerspective; // .rotateBy(swerve.getOperatorForwardDirection())
+        // FieldCentricFacingAngle uses OperatorPerspective — target heading must match operator frame
+        // (same as WCP CC / Phoenix examples), not raw WPILib field (blue-origin) angle only.
+        return hubDirectionInBlueAlliancePerspective.rotateBy(swerve.getOperatorForwardDirection());
     }
 
     @Override

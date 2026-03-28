@@ -25,7 +25,6 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import frc.robot.generated.TunerConstants;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
-import java.util.Optional;
 
 public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     private static final double kMaxPathFeedbackSpeedMps = 0.35;
@@ -36,7 +35,6 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     private static final Rotation2d kRedAlliancePerspectiveRotation = Rotation2d.k180deg;
     /* Keep track if we've ever applied the operator perspective before or not */
     private boolean m_hasAppliedOperatorPerspective = false;
-    private Alliance m_lastOperatorPerspectiveAlliance = null;
     private double m_lastPoseResetTimestamp = 0.0;
 
     /** Swerve request to apply during field-centric path following */
@@ -106,10 +104,12 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
      * opposing alliance wall so field-centric and aim-to-shoot use the correct reference.
      */
     public void resetHeadingToAllianceForward() {
-        final Rotation2d allianceForward = DriverStation.getAlliance()
-            .orElse(Alliance.Blue) == Alliance.Red
-            ? kRedAlliancePerspectiveRotation
-            : kBlueAlliancePerspectiveRotation;
+        // Match Landmarks / teleop fallback: only explicit Blue uses 0°; unknown → Red (180°).
+        final var allianceOpt = DriverStation.getAlliance();
+        final boolean isBlue = allianceOpt.isPresent() && allianceOpt.get() == Alliance.Blue;
+        final Rotation2d allianceForward = isBlue
+            ? kBlueAlliancePerspectiveRotation
+            : kRedAlliancePerspectiveRotation;
         resetPoseAndGyro(new Pose2d(getState().Pose.getTranslation(), allianceForward));
     }
 
@@ -120,7 +120,6 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     public void setOperatorPerspectiveForPracticeRed() {
         setOperatorPerspectiveForward(kRedAlliancePerspectiveRotation);
         m_hasAppliedOperatorPerspective = true;
-        m_lastOperatorPerspectiveAlliance = Alliance.Red;
     }
 
     /**
@@ -199,29 +198,23 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     @Override
     public void periodic() {
         /*
-         * Periodically try to apply the operator perspective.
-         * If we haven't applied the operator perspective before, then we should apply it regardless of DS state.
-         * This allows us to correct the perspective in case the robot code restarts mid-match.
-         * Otherwise, only check and apply the operator perspective if the DS is disabled.
-         * This ensures driving behavior doesn't change until an explicit disable event occurs during testing.
+         * Phoenix / WCP CC pattern: only set operator perspective when alliance is known, and while disabled
+         * (or the first time after boot / code restart so mid-match restarts still pick up FMS alliance).
+         * Do not use a default alliance when unknown — that locked Blue perspective and broke Red orientation.
+         * First successful apply calls seedFieldCentric() so field-centric control matches the estimator pose.
          */
-        final Optional<Alliance> allianceOpt = DriverStation.getAlliance();
-        final boolean allianceKnown = allianceOpt.isPresent();
-
-        // Apply operator perspective when:
-        // 1) We haven't applied it before (initial startup)
-        // 2) DS is disabled AND alliance is known AND alliance changed
-        if (!m_hasAppliedOperatorPerspective
-            || (DriverStation.isDisabled() && allianceKnown && allianceOpt.get() != m_lastOperatorPerspectiveAlliance)) {
-
-            final Alliance allianceToApply = allianceOpt.orElse(Alliance.Blue);
-            setOperatorPerspectiveForward(
-                allianceToApply == Alliance.Red
-                    ? kRedAlliancePerspectiveRotation
-                    : kBlueAlliancePerspectiveRotation
-            );
-            m_hasAppliedOperatorPerspective = true;
-            m_lastOperatorPerspectiveAlliance = allianceToApply;
+        if (!m_hasAppliedOperatorPerspective || DriverStation.isDisabled()) {
+            DriverStation.getAlliance().ifPresent(allianceColor -> {
+                setOperatorPerspectiveForward(
+                    allianceColor == Alliance.Red
+                        ? kRedAlliancePerspectiveRotation
+                        : kBlueAlliancePerspectiveRotation
+                );
+                if (!m_hasAppliedOperatorPerspective) {
+                    seedFieldCentric();
+                }
+                m_hasAppliedOperatorPerspective = true;
+            });
         }
 
         /* Publish raw Pigeon 2 yaw for heading troubleshooting (SmartDashboard is on NT) */
