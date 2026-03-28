@@ -32,7 +32,7 @@ public class AimAndDriveCommand extends Command {
         .withMaxAbsRotationalRate(Driving.kMaxRotationalRate)
         .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
         .withSteerRequestType(SteerRequestType.MotionMagicExpo)
-        .withForwardPerspective(ForwardPerspectiveValue.OperatorPerspective)
+        .withForwardPerspective(ForwardPerspectiveValue.BlueAlliance)
         .withHeadingPID(4, 0, 0);
 
     public AimAndDriveCommand(
