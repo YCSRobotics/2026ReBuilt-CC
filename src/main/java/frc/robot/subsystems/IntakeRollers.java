@@ -1,14 +1,16 @@
 package frc.robot.subsystems;
 
+import static edu.wpi.first.units.Units.Amps;
+import static edu.wpi.first.units.Units.RPM;
 import static edu.wpi.first.units.Units.Volts;
 
-import com.revrobotics.PersistMode;
-import com.revrobotics.RelativeEncoder;
-import com.revrobotics.ResetMode;
-import com.revrobotics.spark.SparkLowLevel;
-import com.revrobotics.spark.SparkMax;
-import com.revrobotics.spark.config.SparkBaseConfig;
-import com.revrobotics.spark.config.SparkMaxConfig;
+import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
+import com.ctre.phoenix6.configs.MotorOutputConfigs;
+import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.VoltageOut;
+import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.InvertedValue;
+import com.ctre.phoenix6.signals.NeutralModeValue;
 
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.util.sendable.SendableBuilder;
@@ -20,7 +22,7 @@ import frc.robot.Constants;
 import frc.robot.Ports;
 
 /**
- * Intake rollers: Neo 2.0 on SPARK Max. Percent output for in/stop.
+ * Intake rollers: Kraken X60 (Talon FX) on roboRIO CAN. Open-loop voltage (percent) for in/stop.
  */
 public class IntakeRollers extends SubsystemBase {
     public enum Speed {
@@ -42,29 +44,38 @@ public class IntakeRollers extends SubsystemBase {
         }
     }
 
-    private static final int kSmartCurrentLimitAmps = 40;
-
-    private final SparkMax motor;
-    private final RelativeEncoder encoder;
+    private final TalonFX motor;
+    private final VoltageOut voltageRequest = new VoltageOut(0);
 
     public IntakeRollers() {
         if (Constants.MechanismPresence.kIntakeRollers()) {
-            motor = new SparkMax(Ports.kIntakeRollers, SparkLowLevel.MotorType.kBrushless);
-            final SparkMaxConfig config = new SparkMaxConfig();
-            config.idleMode(SparkBaseConfig.IdleMode.kBrake);
-            config.inverted(true);
-            config.smartCurrentLimit(kSmartCurrentLimitAmps);
-            motor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kNoPersistParameters);
-            encoder = motor.getEncoder();
+            motor = new TalonFX(Ports.kIntakeRollers, Ports.kRoboRioCANBus);
+
+            final TalonFXConfiguration config = new TalonFXConfiguration()
+                .withMotorOutput(
+                    new MotorOutputConfigs()
+                        .withInverted(InvertedValue.Clockwise_Positive)
+                        .withNeutralMode(NeutralModeValue.Brake)
+                )
+                .withCurrentLimits(
+                    new CurrentLimitsConfigs()
+                        .withStatorCurrentLimit(Amps.of(120))
+                        .withStatorCurrentLimitEnable(true)
+                        .withSupplyCurrentLimit(Amps.of(50))
+                        .withSupplyCurrentLimitEnable(true)
+                );
+
+            motor.getConfigurator().apply(config);
         } else {
             motor = null;
-            encoder = null;
         }
         SmartDashboard.putData(this);
     }
 
     public void set(Speed speed) {
-        if (motor != null) motor.set(speed.getPercentOutput());
+        if (motor != null) {
+            motor.setControl(voltageRequest.withOutput(speed.voltage()));
+        }
     }
 
     /** Run rollers while held; stop on release. Requires robot ENABLED (teleop). */
@@ -76,9 +87,10 @@ public class IntakeRollers extends SubsystemBase {
     public void initSendable(SendableBuilder builder) {
         builder.addStringProperty("Command", () -> getCurrentCommand() != null ? getCurrentCommand().getName() : "null", null);
         builder.addBooleanProperty("Present", () -> motor != null, null);
-        if (motor != null && encoder != null) {
-            builder.addDoubleProperty("RPM", encoder::getVelocity, null);
-            builder.addDoubleProperty("Roller Supply Current", motor::getOutputCurrent, null);
+        if (motor != null) {
+            builder.addDoubleProperty("RPM", () -> motor.getVelocity().getValue().in(RPM), null);
+            builder.addDoubleProperty("Stator Current", () -> motor.getStatorCurrent().getValue().in(Amps), null);
+            builder.addDoubleProperty("Supply Current", () -> motor.getSupplyCurrent().getValue().in(Amps), null);
         }
     }
 }
