@@ -69,7 +69,7 @@ public class RobotContainer {
 
     private final AutoRoutines autoRoutines = new AutoRoutines(swerve, intakePivot, intakeRollers, floor, feeder, shooter, hood, hanger, limelight);
     private final SubsystemCommands subsystemCommands = new SubsystemCommands(
-        swerve, intakePivot, intakeRollers, floor, feeder, shooter, hood, hanger,
+        swerve, intakePivot, floor, feeder, shooter, hood, hanger,
         () -> -driver.getLeftY(),
         () -> -driver.getLeftX()
     );
