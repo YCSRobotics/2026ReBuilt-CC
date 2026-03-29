@@ -10,7 +10,6 @@ import frc.robot.subsystems.Hanger;
 import frc.robot.subsystems.Hood;
 import frc.robot.Constants;
 import frc.robot.subsystems.IntakePivot;
-import frc.robot.subsystems.IntakeRollers;
 import frc.robot.subsystems.Shooter;
 import frc.robot.subsystems.Swerve;
 import frc.robot.commands.IntakeCommands;
@@ -18,7 +17,6 @@ import frc.robot.commands.IntakeCommands;
 public final class SubsystemCommands {
     private final Swerve swerve;
     private final IntakePivot intakePivot;
-    private final IntakeRollers intakeRollers;
     private final Floor floor;
     private final Feeder feeder;
     private final Shooter shooter;
@@ -31,7 +29,6 @@ public final class SubsystemCommands {
     public SubsystemCommands(
         Swerve swerve,
         IntakePivot intakePivot,
-        IntakeRollers intakeRollers,
         Floor floor,
         Feeder feeder,
         Shooter shooter,
@@ -42,7 +39,6 @@ public final class SubsystemCommands {
     ) {
         this.swerve = swerve;
         this.intakePivot = intakePivot;
-        this.intakeRollers = intakeRollers;
         this.floor = floor;
         this.feeder = feeder;
         this.shooter = shooter;
@@ -56,7 +52,6 @@ public final class SubsystemCommands {
     public SubsystemCommands(
         Swerve swerve,
         IntakePivot intakePivot,
-        IntakeRollers intakeRollers,
         Floor floor,
         Feeder feeder,
         Shooter shooter,
@@ -66,7 +61,6 @@ public final class SubsystemCommands {
         this(
             swerve,
             intakePivot,
-            intakeRollers,
             floor,
             feeder,
             shooter,
@@ -150,7 +144,7 @@ public final class SubsystemCommands {
         return Commands.parallel(
             feeder.feedCommand(),
             floor.feedCommand(),
-            Commands.waitSeconds(0.125).andThen(IntakeCommands.agitateCommand(intakePivot, intakeRollers))
+            Commands.waitSeconds(0.125).andThen(IntakeCommands.agitateCommand(intakePivot))
         );
     }
 }

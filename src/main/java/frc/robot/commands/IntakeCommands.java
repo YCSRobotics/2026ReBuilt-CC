@@ -23,23 +23,17 @@ public final class IntakeCommands {
         return cmd;
     }
 
-    /** Agitate: run rollers and cycle pivot between AGITATE and INTAKE. */
-    public static Command agitateCommand(IntakePivot pivot, IntakeRollers rollers) {
-        Command cmd = Commands.runOnce(() -> rollers.set(IntakeRollers.Speed.INTAKE))
-            .andThen(
-                Commands.sequence(
-                    Commands.runOnce(() -> pivot.set(IntakePivot.Position.AGITATE)),
-                    Commands.waitUntil(pivot::isPositionWithinTolerance),
-                    Commands.runOnce(() -> pivot.set(IntakePivot.Position.INTAKE)),
-                    Commands.waitUntil(pivot::isPositionWithinTolerance)
-                )
-                .repeatedly()
+    /** Agitate: cycle pivot between AGITATE and INTAKE (rollers stay off). */
+    public static Command agitateCommand(IntakePivot pivot) {
+        Command cmd = Commands.sequence(
+                Commands.runOnce(() -> pivot.set(IntakePivot.Position.AGITATE)),
+                Commands.waitUntil(pivot::isPositionWithinTolerance),
+                Commands.runOnce(() -> pivot.set(IntakePivot.Position.INTAKE)),
+                Commands.waitUntil(pivot::isPositionWithinTolerance)
             )
-            .handleInterrupt(() -> {
-                pivot.set(IntakePivot.Position.INTAKE);
-                rollers.set(IntakeRollers.Speed.STOP);
-            });
-        cmd.addRequirements(pivot, rollers);
+            .repeatedly()
+            .handleInterrupt(() -> pivot.set(IntakePivot.Position.INTAKE));
+        cmd.addRequirements(pivot);
         return cmd;
     }
 }
