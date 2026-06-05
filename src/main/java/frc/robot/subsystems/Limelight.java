@@ -122,7 +122,7 @@ public class Limelight extends SubsystemBase {
             // Always run vision, but reject any measurement captured before the last pose reset.
             // This prevents stale 0° measurements (from before teleop/auto pose init) from
             // overwriting the correct heading after resetPoseAndGyro() is called.
-            final double yawDeg = swerve.getPigeon2().getYaw().getValueAsDouble();
+            final double yawDeg = currentRobotPose.getRotation().getDegrees();
             final double yawRateDegPerSec = Math.toDegrees(swerve.getState().Speeds.omegaRadiansPerSecond);
             final Optional<Measurement> measurement = getMeasurement(currentRobotPose, yawDeg, yawRateDegPerSec);
             measurement.ifPresent(m -> {
