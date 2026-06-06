@@ -183,22 +183,31 @@ public class Limelight extends SubsystemBase {
         final boolean withinHeadingBand = yawDeltaDeg <= Constants.Limelight.kVisionHeadingAgreementDegrees;
         visionHeadingWithinBandEntry.setBoolean(withinHeadingBand);
 
+        // Dynamic XY std dev: trust scales with distance² and inversely with tagCount².
+        // A single tag at 5m gets ~0.50m stddev; two tags at 2m get ~0.05m stddev.
+        final double xyStdDev = Math.max(
+            Constants.Limelight.kVisionXYStdDevMinMeters,
+            Constants.Limelight.kVisionXYStdDevCoefficient
+                * Math.pow(poseEstimate_MegaTag2.avgTagDist, 2.0)
+                / Math.pow(poseEstimate_MegaTag2.tagCount, 2.0)
+        );
+
         final Pose2d fusedPose;
         final Matrix<N3, N1> standardDeviations;
         if (withinHeadingBand) {
             // Vision and odometry agree on heading: allow Kalman to nudge theta toward vision.
             fusedPose = new Pose2d(translation, visionRotation);
             standardDeviations = VecBuilder.fill(
-                Constants.Limelight.kVisionStdDevXYMeters,
-                Constants.Limelight.kVisionStdDevXYMeters,
+                xyStdDev,
+                xyStdDev,
                 Constants.Limelight.kVisionThetaStdDevWithinHeadingBandRad
             );
         } else {
             // Disagree: translation only — measurement uses odometry yaw so estimator does not snap heading.
             fusedPose = new Pose2d(translation, odometryRotation);
             standardDeviations = VecBuilder.fill(
-                Constants.Limelight.kVisionStdDevXYMeters,
-                Constants.Limelight.kVisionStdDevXYMeters,
+                xyStdDev,
+                xyStdDev,
                 Constants.Limelight.kVisionThetaStdDevTranslationOnlyRad
             );
         }

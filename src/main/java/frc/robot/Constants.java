@@ -108,8 +108,17 @@ public final class Constants {
          */
         public static final double kVisionHeadingAgreementDegrees = 7.5;
 
-        /** Vision measurement std dev for x and y (meters) when applying a vision update. */
-        public static final double kVisionStdDevXYMeters = 0.1;
+        /**
+         * Coefficient for dynamic XY std dev scaling: xyStdDev = coefficient * dist² / tagCount²
+         * Increase to trust vision less; decrease to trust it more. Needs empirical tuning.
+         * Reference: 6328 Mechanical Advantage uses 0.01 with 4 cameras + custom hardware.
+         */
+        public static final double kVisionXYStdDevCoefficient = 0.02;
+
+        /**
+         * Minimum XY std dev floor (meters) — prevents overconfidence at very close range.
+         */
+        public static final double kVisionXYStdDevMinMeters = 0.05;
 
         /**
          * Theta std dev (radians) when heading is within {@link #kVisionHeadingAgreementDegrees}.
