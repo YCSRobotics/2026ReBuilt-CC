@@ -87,6 +87,13 @@ public final class Constants {
         public static final AngularVelocity kFreeSpeed = RPM.of(5670);
     }
 
+    public static class Field {
+        /** FRC 2026 field length (X axis, Blue wall to Red wall). Confirmed from field drawing: 651.22 in. */
+        public static final double kFieldLengthMeters = Inches.of(651.22).in(Meters);
+        /** FRC 2026 field width (Y axis). Confirmed from field drawing: 317.69 in. */
+        public static final double kFieldWidthMeters = Inches.of(317.69).in(Meters);
+    }
+
     public static class Limelight {
         // Camera pose relative to robot center (robot coordinate system)
         // Forward: positive = toward front bumper from robot center (meters)
@@ -121,14 +128,40 @@ public final class Constants {
         public static final double kVisionXYStdDevMinMeters = 0.05;
 
         /**
-         * Theta std dev (radians) when heading is within {@link #kVisionHeadingAgreementDegrees}.
-         * Lower = trust vision heading more for small corrections.
+         * Theta std dev (radians) when heading is within {@link #kVisionHeadingAgreementDegrees}
+         * and MegaTag1 saw only 1 tag. Single-tag rotation is ambiguity-prone; trust moderately.
          */
-        public static final double kVisionThetaStdDevWithinHeadingBandRad = 0.35;
+        public static final double kVisionThetaStdDevSingleTagRad = 0.35;
+
+        /**
+         * Theta std dev (radians) when heading is within {@link #kVisionHeadingAgreementDegrees}
+         * and MegaTag1 saw 2+ tags. Multi-tag rotation is more reliable; trust more.
+         */
+        public static final double kVisionThetaStdDevMultiTagRad = 0.15;
 
         /**
          * Theta std dev (radians) when outside the heading band: effectively translation-only fusion.
          */
         public static final double kVisionThetaStdDevTranslationOnlyRad = 1.0e6;
+
+        /**
+         * Minimum XY std dev floor (meters) when outside the heading band. Higher than the normal
+         * floor because MegaTag2 XY quality is correlated with heading quality — if heading is
+         * suspect enough to be outside the band, trust XY less too.
+         */
+        public static final double kVisionXYStdDevOutOfBandMinMeters = 0.3;
+
+        /**
+         * Maximum allowed distance (meters) between a new MegaTag2 XY estimate and the current
+         * odometry pose. Measurements beyond this are rejected as implausible solves.
+         * A robot cannot physically move more than ~0.5 m in one 20 ms loop; 1.0 m is a generous bound.
+         */
+        public static final double kMaxVisionJumpMeters = 1.0;
+
+        /**
+         * Camera health timeout (seconds). If no valid measurement has been accepted within this
+         * window, the vision health indicator on SmartDashboard turns false.
+         */
+        public static final double kCameraHealthTimeoutSeconds = 0.5;
     }
 }

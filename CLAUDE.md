@@ -26,6 +26,28 @@ This is a WPILib command-based Java robot for FRC Team YCS Robotics, 2026 season
 
 ---
 
+## Library Constraints
+
+This codebase is built on three primary libraries. All recommendations must stay consistent with their intended APIs and patterns — do not introduce custom alternatives that duplicate functionality these libraries already provide.
+
+**CTRE Phoenix 6 / Tuner X**
+- Swerve drivetrain, swerve modules, and the Pigeon2 gyro are configured and generated via **CTRE Tuner X**. `TunerConstants.java` is the generated output — do not hand-edit hardware IDs, gear ratios, or PID gains there; those belong in Tuner X and are regenerated.
+- Motor controllers (TalonFX) use Phoenix 6 APIs (`TalonFX`, `StatusSignal`, control requests). Do not mix in Phoenix 5 (`WPI_TalonFX`, `set()`, `.configXxx()`) patterns.
+- Use CTRE's `SwerveRequest` types (`FieldCentric`, `FieldCentricFacingAngle`, `ApplyFieldSpeeds`, etc.) for all drivetrain control. Do not construct raw `ChassisSpeeds` and bypass the request layer.
+
+**WPILib**
+- Use the WPILib command-based framework (`Command`, `Subsystem`, `CommandScheduler`). Do not spawn threads or use manual periodic polling outside of subsystem `periodic()` methods.
+- Pose estimation uses WPILib's `SwerveDrivePoseEstimator` (accessed through CTRE's `TunerSwerveDrivetrain`). Do not introduce a second estimator or shadow pose variable.
+- Use `Rotation2d` for all angles so they stay bounded. Raw `double` degrees/radians should only appear at the boundary where hardware APIs require them.
+- Autonomous paths use the **Choreo** library (`AutoFactory`, `.traj` files). Do not introduce PathPlanner or other path-following libraries.
+
+**Limelight**
+- Vision data is consumed via the `LimelightHelpers` utility class (HTTP/NetworkTables interface). Do not access NetworkTables vision keys manually — use the `LimelightHelpers` API.
+- MegaTag2 is the primary XY source; MegaTag1 is used for rotation cross-check and pose initialization. Any new vision feature should respect this two-tag-type architecture.
+- Always call `LimelightHelpers.SetRobotOrientation()` before reading MegaTag2 results each loop — MegaTag2's XY solve is only valid when the heading is current.
+
+---
+
 ## Architecture
 
 ### Two CAN buses

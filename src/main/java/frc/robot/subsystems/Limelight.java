@@ -18,6 +18,7 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -31,6 +32,7 @@ public class Limelight extends SubsystemBase {
     private static final double kNoTargetSentinel = -1.0;
 
     private boolean m_hasInitializedPose = false;
+    private double m_lastValidMeasurementTimestamp = -1.0;
     private final String name;
     private final NetworkTable telemetryTable;
     private final StructPublisher<Pose2d> posePublisher;
@@ -40,6 +42,9 @@ public class Limelight extends SubsystemBase {
     private final NetworkTableEntry aprilTagCountEntry;
     private final NetworkTableEntry visionOdometryYawDeltaDegEntry;
     private final NetworkTableEntry visionHeadingWithinBandEntry;
+    private final NetworkTableEntry visionPoseOutOfFieldEntry;
+    private final NetworkTableEntry visionJumpRejectedEntry;
+    private final NetworkTableEntry visionCameraHealthyEntry;
 
     public Limelight(String name) {
         this.name = name;
@@ -51,6 +56,9 @@ public class Limelight extends SubsystemBase {
         this.aprilTagCountEntry = telemetryTable.getEntry("AprilTag Count");
         this.visionOdometryYawDeltaDegEntry = telemetryTable.getEntry("Vision/Odom Yaw Delta (deg)");
         this.visionHeadingWithinBandEntry = telemetryTable.getEntry("Vision Heading Within Band");
+        this.visionPoseOutOfFieldEntry = telemetryTable.getEntry("Vision/Pose Out Of Field");
+        this.visionJumpRejectedEntry = telemetryTable.getEntry("Vision/Jump Rejected");
+        this.visionCameraHealthyEntry = telemetryTable.getEntry("Vision/Camera Healthy");
 
         // Configure camera pose relative to robot center
         LimelightHelpers.setCameraPose_RobotSpace(
@@ -70,6 +78,8 @@ public class Limelight extends SubsystemBase {
         final Translation2d hubField = Landmarks.hubPosition();
         SmartDashboard.putNumber("Hub X (m)", hubField.getX());
         SmartDashboard.putNumber("Hub Y (m)", hubField.getY());
+
+        visionCameraHealthyEntry.setBoolean(hasRecentMeasurement());
 
         // Publish vision-based distance to AprilTag for dashboard and Elastic (always publish so keys exist in NT)
         final RawFiducial[] fiducials = LimelightHelpers.getRawFiducials(name);
@@ -114,8 +124,14 @@ public class Limelight extends SubsystemBase {
             if (!m_hasInitializedPose) {
                 final PoseEstimate mt1 = LimelightHelpers.getBotPoseEstimate_wpiBlue(name);
                 if (mt1 != null && mt1.tagCount >= 2) {
-                    swerve.resetPoseAndGyro(mt1.pose);
-                    m_hasInitializedPose = true;
+                    final double ix = mt1.pose.getX();
+                    final double iy = mt1.pose.getY();
+                    final boolean initOnField = ix >= 0 && ix <= Constants.Field.kFieldLengthMeters
+                        && iy >= 0 && iy <= Constants.Field.kFieldWidthMeters;
+                    if (initOnField) {
+                        swerve.resetPoseAndGyro(mt1.pose);
+                        m_hasInitializedPose = true;
+                    }
                 }
             }
 
@@ -148,6 +164,16 @@ public class Limelight extends SubsystemBase {
     /** Returns true if vision has already initialized the robot pose from AprilTags. */
     public boolean hasInitializedPose() {
         return m_hasInitializedPose;
+    }
+
+    /**
+     * Returns true if a valid vision measurement was accepted within the camera health timeout.
+     * Use as a driver dashboard indicator — not a hard fire gate (odometry remains valid short-term).
+     */
+    public boolean hasRecentMeasurement() {
+        return m_lastValidMeasurementTimestamp >= 0
+            && (Timer.getFPGATimestamp() - m_lastValidMeasurementTimestamp)
+                <= Constants.Limelight.kCameraHealthTimeoutSeconds;
     }
 
     public Optional<Measurement> getMeasurement(Pose2d currentRobotPose, double yawDeg, double yawRateDegPerSec) {
@@ -185,25 +211,27 @@ public class Limelight extends SubsystemBase {
 
         // Dynamic XY std dev: trust scales with distance² and inversely with tagCount².
         // A single tag at 5m gets ~0.50m stddev; two tags at 2m get ~0.05m stddev.
-        final double xyStdDev = Math.max(
-            Constants.Limelight.kVisionXYStdDevMinMeters,
-            Constants.Limelight.kVisionXYStdDevCoefficient
-                * Math.pow(poseEstimate_MegaTag2.avgTagDist, 2.0)
-                / Math.pow(poseEstimate_MegaTag2.tagCount, 2.0)
-        );
+        // The floor applied depends on heading band agreement — outside the band, MegaTag2 XY
+        // quality is less certain because it depends on heading quality, so a higher floor is used.
+        final double xyStdDevRaw = Constants.Limelight.kVisionXYStdDevCoefficient
+            * Math.pow(poseEstimate_MegaTag2.avgTagDist, 2.0)
+            / Math.pow(poseEstimate_MegaTag2.tagCount, 2.0);
 
         final Pose2d fusedPose;
         final Matrix<N3, N1> standardDeviations;
         if (withinHeadingBand) {
             // Vision and odometry agree on heading: allow Kalman to nudge theta toward vision.
+            // Multi-tag MegaTag1 rotation is more reliable than single-tag; trust it more.
+            final double thetaStdDev = poseEstimate_MegaTag1.tagCount >= 2
+                ? Constants.Limelight.kVisionThetaStdDevMultiTagRad
+                : Constants.Limelight.kVisionThetaStdDevSingleTagRad;
+            final double xyStdDev = Math.max(Constants.Limelight.kVisionXYStdDevMinMeters, xyStdDevRaw);
             fusedPose = new Pose2d(translation, visionRotation);
-            standardDeviations = VecBuilder.fill(
-                xyStdDev,
-                xyStdDev,
-                Constants.Limelight.kVisionThetaStdDevWithinHeadingBandRad
-            );
+            standardDeviations = VecBuilder.fill(xyStdDev, xyStdDev, thetaStdDev);
         } else {
             // Disagree: translation only — measurement uses odometry yaw so estimator does not snap heading.
+            // Higher XY floor because MegaTag2 XY quality correlates with heading quality.
+            final double xyStdDev = Math.max(Constants.Limelight.kVisionXYStdDevOutOfBandMinMeters, xyStdDevRaw);
             fusedPose = new Pose2d(translation, odometryRotation);
             standardDeviations = VecBuilder.fill(
                 xyStdDev,
@@ -214,7 +242,30 @@ public class Limelight extends SubsystemBase {
 
         poseEstimate_MegaTag2.pose = fusedPose;
 
+        // Reject measurements that place the robot outside the field boundary.
+        // A bad MegaTag solve can produce wildly off-field poses; injecting them corrupts the Kalman filter.
+        final double x = fusedPose.getX();
+        final double y = fusedPose.getY();
+        final boolean outOfField = x < 0 || x > Constants.Field.kFieldLengthMeters
+            || y < 0 || y > Constants.Field.kFieldWidthMeters;
+        visionPoseOutOfFieldEntry.setBoolean(outOfField);
+        if (outOfField) {
+            visionJumpRejectedEntry.setBoolean(false);
+            return Optional.empty();
+        }
+
+        // Reject measurements that are implausibly far from the current odometry pose.
+        // A robot cannot physically travel more than kMaxVisionJumpMeters in one 20 ms loop.
+        // This catches bad MegaTag2 solves that are within field bounds but still wildly wrong.
+        final double jumpMeters = fusedPose.getTranslation().getDistance(currentRobotPose.getTranslation());
+        final boolean jumpRejected = jumpMeters > Constants.Limelight.kMaxVisionJumpMeters;
+        visionJumpRejectedEntry.setBoolean(jumpRejected);
+        if (jumpRejected) {
+            return Optional.empty();
+        }
+
         posePublisher.set(poseEstimate_MegaTag2.pose);
+        m_lastValidMeasurementTimestamp = Timer.getFPGATimestamp();
 
         return Optional.of(new Measurement(poseEstimate_MegaTag2, standardDeviations));
     }

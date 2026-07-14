@@ -81,7 +81,8 @@ public final class SubsystemCommands {
             Commands.waitUntil(
                     () -> aimAndDriveCommand.isAimed()
                         && prepareShotCommand.isReadyToShoot()
-                        && swerve.isTranslationStopped())
+                        && swerve.isTranslationStopped()
+                        && swerve.isPoseOnField())
                 .andThen(feed())
         );
     }

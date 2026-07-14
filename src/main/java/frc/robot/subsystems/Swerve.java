@@ -23,6 +23,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
+import frc.robot.Constants;
 import frc.robot.generated.TunerConstants;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 import java.util.Optional;
@@ -134,6 +135,17 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
         return Math.abs(s.vxMetersPerSecond) < linearToleranceMps
             && Math.abs(s.vyMetersPerSecond) < linearToleranceMps
             && Math.abs(s.omegaRadiansPerSecond) < omegaToleranceRadPerSec;
+    }
+
+    /**
+     * True when the current estimated pose is within the 2026 field boundary.
+     * Use as a pre-fire gate in aim-and-shoot to block shots when bad vision has
+     * injected an off-field pose into the Kalman filter.
+     */
+    public boolean isPoseOnField() {
+        final Translation2d t = getState().Pose.getTranslation();
+        return t.getX() >= 0 && t.getX() <= Constants.Field.kFieldLengthMeters
+            && t.getY() >= 0 && t.getY() <= Constants.Field.kFieldWidthMeters;
     }
 
     /**

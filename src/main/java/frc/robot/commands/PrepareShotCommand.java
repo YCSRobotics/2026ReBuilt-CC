@@ -50,7 +50,7 @@ public class PrepareShotCommand extends Command {
 
     // Offset from front-of-robot to front-of-hub measurement to center-to-center (what the code measures).
     // Hub radius = 23 in, robot center to front bumper = 17.5 in → total offset = 40.5 in.
-    private static final double kShotDistanceOffsetInches = 23;
+    private static final double kShotDistanceOffsetInches = 40.5;
 
     static {
         distanceToShotMap.put(Inches.of(30.0 + kShotDistanceOffsetInches), FIRST_ROW_SHOT);
