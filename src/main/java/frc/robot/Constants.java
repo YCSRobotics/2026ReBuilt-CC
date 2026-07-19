@@ -154,9 +154,11 @@ public final class Constants {
         /**
          * Maximum allowed distance (meters) between a new MegaTag2 XY estimate and the current
          * odometry pose. Measurements beyond this are rejected as implausible solves.
-         * A robot cannot physically move more than ~0.5 m in one 20 ms loop; 1.0 m is a generous bound.
+         * At max robot speed (0.8 m/s) with 23 ms vision latency, legitimate odometry drift
+         * is ~18 mm. 0.5 m catches bad solves (a 0.36 m jump was observed in Q74) while
+         * still allowing real corrections after brief vision outages.
          */
-        public static final double kMaxVisionJumpMeters = 1.0;
+        public static final double kMaxVisionJumpMeters = 0.5;
 
         /**
          * Camera health timeout (seconds). If no valid measurement has been accepted within this

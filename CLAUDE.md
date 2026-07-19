@@ -101,7 +101,12 @@ During Choreo segments, the Limelight default command is preempted by the trajec
 Full analysis: [docs/analysis/MISAL_Q74_localization_analysis.md](docs/analysis/MISAL_Q74_localization_analysis.md)
 - **Fixed:** Unbounded Pigeon2 yaw fed to `SetRobotOrientation` (raw value reached 1820°). Fixed in `26a0897`.
 - **Fixed:** Flat XY stddev (0.1m) trusted distant single-tag estimates equally to close multi-tag estimates. Fixed in `19b0466`.
-- **Open:** No field boundary validation — a bad MegaTag estimate could inject an out-of-field pose without rejection.
-- **Open:** No camera health/disconnect monitoring during matches.
-- **Open:** Odometry stddev in `Swerve` constructor (`VecBuilder.fill(0.1, 0.1, 0.1)`) has not been tuned relative to the new dynamic vision stddev.
+- **Fixed:** No field boundary validation — implemented in `Limelight.java` (out-of-field rejection + `kMaxVisionJumpMeters` gate).
+- **Fixed:** No camera health/disconnect monitoring — implemented via `hasRecentMeasurement()` with `kCameraHealthTimeoutSeconds = 0.5`.
+- **Open:** Odometry stddev in `Swerve` constructor (`VecBuilder.fill(0.1, 0.1, 0.1)`) has not been tuned relative to the new dynamic vision stddev. Tune last — depends on `kVisionXYStdDevCoefficient` being validated first.
 - **Open:** `kVisionXYStdDevCoefficient = 0.02` is a starting point and needs empirical tuning against match logs.
+
+### Known path tracking issues (from MISAL Q74 log analysis)
+- **Fixed:** `kMaxVisionJumpMeters` lowered from 1.0 to 0.5m in `Constants.java` — a 0.36m mid-trajectory localization jump passed through the old gate in Q74.
+- **Open:** Path feedback too aggressive — `kMaxPathFeedbackSpeedMps = 0.35` and X/Y PID P=10 in `Swerve.java` caused sustained 0.20–0.25 m/s overshoot above the 0.80 m/s trajectory max. Reduce clamp to 0.15 and P to 5; tune on practice field.
+- **Open:** Deceleration lag cascades from overshoot above. Also verify Choreo robot model mass (62.14 kg) matches current build weight and regenerate trajectory if different.
