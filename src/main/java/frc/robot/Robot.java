@@ -58,6 +58,7 @@ public class Robot extends TimedRobot {
 
         SmartDashboard.putBoolean("Brownout", RobotController.isBrownedOut());
         SmartDashboard.putNumber("BatteryVoltage", RobotController.getBatteryVoltage());
+        SmartDashboard.putBoolean("CommLink", DriverStation.isDSAttached());
     }
 
     @Override
