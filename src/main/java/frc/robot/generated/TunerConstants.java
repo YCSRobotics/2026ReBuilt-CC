@@ -53,7 +53,16 @@ public class TunerConstants {
 
     // Initial configs for the drive and steer motors and the azimuth encoder; these cannot be null.
     // Some configs will be overwritten; check the `with*InitialConfigs()` API documentation.
-    private static final TalonFXConfiguration driveInitialConfigs = new TalonFXConfiguration();
+    //
+    // ⚠️ AFTER REGENERATING FROM TUNER X — restore these two things Tuner X does not generate:
+    //   1. Supply current limit in driveInitialConfigs below. See docs/analysis/current_budget.md.
+    //   2. CANBus log path on kCANBus below — change "./logs/example.hoot" back to "/home/lvuser/".
+    private static final TalonFXConfiguration driveInitialConfigs = new TalonFXConfiguration()
+        .withCurrentLimits(
+            new CurrentLimitsConfigs()
+                .withSupplyCurrentLimit(Amps.of(40))
+                .withSupplyCurrentLimitEnable(true)
+        );
     private static final TalonFXConfiguration steerInitialConfigs = new TalonFXConfiguration()
         .withCurrentLimits(
             new CurrentLimitsConfigs()
@@ -68,7 +77,7 @@ public class TunerConstants {
 
     // CAN bus that the devices are located on;
     // All swerve devices must share the same CAN bus
-    public static final CANBus kCANBus = new CANBus("Swerve Bus", "./logs/example.hoot");
+    public static final CANBus kCANBus = new CANBus("Swerve Bus", "/home/lvuser/");
 
     // Theoretical free speed (m/s) at 12 V applied output;
     // This needs to be tuned to your individual robot

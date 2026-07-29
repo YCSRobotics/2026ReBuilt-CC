@@ -21,6 +21,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.PowerDistribution;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants.Driving;
 import frc.robot.commands.AutoRoutines;
@@ -50,6 +51,7 @@ public class RobotContainer {
     private static final double kStartPoseReadyTranslationToleranceMeters = 0.10;
     private static final double kStartPoseReadyHeadingToleranceDegrees = 3.0;
 
+    private final PowerDistribution pdh = new PowerDistribution();
     private final Swerve swerve = new Swerve();
     private final IntakePivot intakePivot = new IntakePivot();
     private final IntakeRollers intakeRollers = new IntakeRollers();

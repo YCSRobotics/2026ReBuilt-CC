@@ -15,6 +15,21 @@ There is no linting step. `./gradlew build` is the primary correctness check —
 
 ---
 
+## Engineering Constraints for All Suggestions
+
+The robot operates under two hard constraints that must be explicitly considered for every code or tuning change:
+
+**1. Loop overrun budget — 20ms cycle time**
+The robot runs a 20ms control loop. Loop overruns are already being observed. Any suggestion that adds work to `robotPeriodic()` or subsystem `periodic()` methods — including NetworkTables publishing, additional sensor reads, logging calls, or heavier computation — must flag the loop overrun risk and justify the cost. Prefer post-run log analysis (hoot / wpilog) over live publishing to avoid adding loop burden.
+
+**2. Match time tradeoff — 2.5 minutes to score as many points as possible**
+Every tuning decision involves a tradeoff between current draw (battery protection) and cycle time (how fast the robot can intake, drive, aim, and shoot). When proposing a change — current limits, slew rates, acceleration profiles, command sequencing — explicitly state:
+- What it protects against (brownout, motor damage, etc.)
+- What it costs in cycle time or responsiveness
+- How to validate the tradeoff on the practice field
+
+---
+
 ## Repository Context
 
 This is a WPILib command-based Java robot for FRC Team YCS Robotics, 2026 season. The robot shoots fuel into a hub, intakes from the floor, and hangs. Vision localization drives an aim-and-shoot feature.
@@ -32,6 +47,7 @@ This codebase is built on three primary libraries. All recommendations must stay
 
 **CTRE Phoenix 6 / Tuner X**
 - Swerve drivetrain, swerve modules, and the Pigeon2 gyro are configured and generated via **CTRE Tuner X**. `TunerConstants.java` is the generated output — do not hand-edit hardware IDs, gear ratios, or PID gains there; those belong in Tuner X and are regenerated.
+- **After any Tuner X regeneration:** restore two things Tuner X does not generate: (1) supply current limit in `driveInitialConfigs` — see `docs/analysis/current_budget.md`; (2) `kCANBus` log path — change `"./logs/example.hoot"` back to `"/home/lvuser/"`.
 - Motor controllers (TalonFX) use Phoenix 6 APIs (`TalonFX`, `StatusSignal`, control requests). Do not mix in Phoenix 5 (`WPI_TalonFX`, `set()`, `.configXxx()`) patterns.
 - Use CTRE's `SwerveRequest` types (`FieldCentric`, `FieldCentricFacingAngle`, `ApplyFieldSpeeds`, etc.) for all drivetrain control. Do not construct raw `ChassisSpeeds` and bypass the request layer.
 

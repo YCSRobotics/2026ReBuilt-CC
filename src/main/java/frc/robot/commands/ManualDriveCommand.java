@@ -77,6 +77,7 @@ public class ManualDriveCommand extends Command {
     public void initialize() {
         currentState = State.IDLING;
         previousInput = new ManualDriveInput();
+        inputSmoother.reset();
     }
 
     @Override
