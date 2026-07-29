@@ -6,6 +6,7 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.Volts;
 
+import com.ctre.phoenix6.SignalLogger;
 import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotController;
@@ -27,6 +28,7 @@ public class Robot extends TimedRobot {
      * initialization code.
      */
     public Robot() {
+        SignalLogger.start();
         DataLogManager.start();
         DriverStation.startDataLog(DataLogManager.getLog());
 
