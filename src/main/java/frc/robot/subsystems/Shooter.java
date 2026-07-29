@@ -7,6 +7,7 @@ import static edu.wpi.first.units.Units.Volts;
 
 import java.util.List;
 
+import com.ctre.phoenix6.configs.ClosedLoopRampsConfigs;
 import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.configs.MotorOutputConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
@@ -36,6 +37,7 @@ import frc.robot.Ports;
  */
 public class Shooter extends SubsystemBase {
     private static final double kDefaultTargetRPM = 3000.0;
+    private static final double kClosedLoopRampSeconds = 0.25;
     private static final AngularVelocity kVelocityTolerance = RPM.of(100);
 
     private final TalonFX leftMotor, middleMotor, rightMotor;
@@ -89,6 +91,10 @@ public class Shooter extends SubsystemBase {
                     .withStatorCurrentLimitEnable(true)
                     .withSupplyCurrentLimit(Amps.of(70))
                     .withSupplyCurrentLimitEnable(true)
+            )
+            .withClosedLoopRamps(
+                new ClosedLoopRampsConfigs()
+                    .withVoltageClosedLoopRampPeriod(kClosedLoopRampSeconds)
             )
             .withSlot0(
                 new Slot0Configs()
