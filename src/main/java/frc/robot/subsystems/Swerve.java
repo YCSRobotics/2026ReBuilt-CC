@@ -3,6 +3,7 @@ package frc.robot.subsystems;
 import java.util.function.Supplier;
 
 import com.ctre.phoenix6.Utils;
+import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import choreo.Choreo.TrajectoryLogger;
@@ -20,6 +21,7 @@ import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import static edu.wpi.first.units.Units.Amps;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
@@ -46,17 +48,29 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     private final PIDController pathYController = new PIDController(10, 0, 0);
     private final PIDController pathThetaController = new PIDController(7, 0, 0);
 
+    // Supply current limit applied to drive motors after swerve framework initialization.
+    // Kept here (not TunerConstants.driveInitialConfigs) so it survives Tuner X regeneration
+    // and does not interfere with the framework's own motor config sequence.
+    private static final double kDriveSupplyCurrentLimitAmps = 40.0;
+
     public Swerve() {
         super(
-            TunerConstants.DrivetrainConstants, 
+            TunerConstants.DrivetrainConstants,
             0,
             VecBuilder.fill(0.1, 0.1, 0.1),
             VecBuilder.fill(0.1, 0.1, 0.1),
-            TunerConstants.FrontLeft, 
-            TunerConstants.FrontRight, 
-            TunerConstants.BackLeft, 
+            TunerConstants.FrontLeft,
+            TunerConstants.FrontRight,
+            TunerConstants.BackLeft,
             TunerConstants.BackRight
         );
+
+        final CurrentLimitsConfigs driveCurrentLimits = new CurrentLimitsConfigs()
+            .withSupplyCurrentLimit(Amps.of(kDriveSupplyCurrentLimitAmps))
+            .withSupplyCurrentLimitEnable(true);
+        for (int i = 0; i < 4; i++) {
+            getModule(i).getDriveMotor().getConfigurator().apply(driveCurrentLimits);
+        }
     }
 
     /**

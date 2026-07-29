@@ -47,7 +47,7 @@ This codebase is built on three primary libraries. All recommendations must stay
 
 **CTRE Phoenix 6 / Tuner X**
 - Swerve drivetrain, swerve modules, and the Pigeon2 gyro are configured and generated via **CTRE Tuner X**. `TunerConstants.java` is the generated output — do not hand-edit hardware IDs, gear ratios, or PID gains there; those belong in Tuner X and are regenerated.
-- **After any Tuner X regeneration:** restore two things Tuner X does not generate: (1) supply current limit in `driveInitialConfigs` — see `docs/analysis/current_budget.md`; (2) `kCANBus` log path — change `"./logs/example.hoot"` back to `"/home/lvuser/"`.
+- **After any Tuner X regeneration:** `driveInitialConfigs` should remain a plain `new TalonFXConfiguration()` — do not add current limits there. Drive motor supply current limit is applied in `Swerve.java` after framework initialization (adding it to `driveInitialConfigs` caused spin-on-enable). Hoot log path is set in `Robot.java` via `SignalLogger.setPath()` — `kCANBus` needs no path argument.
 - Motor controllers (TalonFX) use Phoenix 6 APIs (`TalonFX`, `StatusSignal`, control requests). Do not mix in Phoenix 5 (`WPI_TalonFX`, `set()`, `.configXxx()`) patterns.
 - Use CTRE's `SwerveRequest` types (`FieldCentric`, `FieldCentricFacingAngle`, `ApplyFieldSpeeds`, etc.) for all drivetrain control. Do not construct raw `ChassisSpeeds` and bypass the request layer.
 
