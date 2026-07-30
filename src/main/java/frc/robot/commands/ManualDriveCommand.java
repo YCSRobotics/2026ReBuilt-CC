@@ -7,6 +7,9 @@ import com.ctre.phoenix6.swerve.SwerveModule.SteerRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.ctre.phoenix6.swerve.SwerveRequest.ForwardPerspectiveValue;
 
+import edu.wpi.first.util.datalog.DataLog;
+import edu.wpi.first.util.datalog.DoubleLogEntry;
+import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants.Driving;
 import frc.robot.subsystems.Swerve;
@@ -46,6 +49,10 @@ public class ManualDriveCommand extends Command {
     /** Default false: robot-centric. True after Back: field-centric (forward = toward opposing wall). */
     private boolean useFieldCentric = false;
 
+    private final DoubleLogEntry logForward;
+    private final DoubleLogEntry logLeft;
+    private final DoubleLogEntry logRotation;
+
     public ManualDriveCommand(
         Swerve swerve,
         DoubleSupplier forwardInput,
@@ -55,6 +62,11 @@ public class ManualDriveCommand extends Command {
         this.swerve = swerve;
         this.inputSmoother = new DriveInputSmoother(forwardInput, leftInput, rotationInput);
         addRequirements(swerve);
+
+        final DataLog log = DataLogManager.getLog();
+        logForward  = new DoubleLogEntry(log, "Drive/ForwardInput");
+        logLeft     = new DoubleLogEntry(log, "Drive/LeftInput");
+        logRotation = new DoubleLogEntry(log, "Drive/RotationInput");
     }
 
     /**
@@ -83,6 +95,9 @@ public class ManualDriveCommand extends Command {
     @Override
     public void execute() {
         final ManualDriveInput input = inputSmoother.getSmoothedInput();
+        logForward.append(input.forward);
+        logLeft.append(input.left);
+        logRotation.append(input.rotation);
         if (input.hasRotation() || input.hasTranslation()) {
             currentState = State.DRIVING;
         } else if (previousInput.hasRotation() || previousInput.hasTranslation()) {
