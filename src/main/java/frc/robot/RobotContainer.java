@@ -51,7 +51,7 @@ public class RobotContainer {
     private static final double kStartPoseReadyTranslationToleranceMeters = 0.10;
     private static final double kStartPoseReadyHeadingToleranceDegrees = 3.0;
 
-    private final PowerDistribution pdh = new PowerDistribution();
+    private final PowerDistribution pdh = new PowerDistribution(5, PowerDistribution.ModuleType.kRev);
     private final Swerve swerve = new Swerve();
     private final IntakePivot intakePivot = new IntakePivot();
     private final IntakeRollers intakeRollers = new IntakeRollers();
