@@ -28,7 +28,7 @@ public class Robot extends TimedRobot {
      * initialization code.
      */
     public Robot() {
-        SignalLogger.setPath("/home/lvuser/");
+        SignalLogger.setPath("/home/lvuser/logs");
         SignalLogger.start();
         DataLogManager.start();
         DriverStation.startDataLog(DataLogManager.getLog());
