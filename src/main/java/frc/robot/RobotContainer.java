@@ -222,6 +222,18 @@ public class RobotContainer {
         }
     }
 
+    /**
+     * Publishes PDH power data to SmartDashboard every loop.
+     * Values are logged automatically via DataLogManager (NT→wpilog) and visible in Elastic.
+     * NOTE: temporary Elastic live-view keys marked with [TEST] — remove before competition
+     * if loop overrun budget becomes a concern.
+     */
+    public void publishPdhData() {
+        SmartDashboard.putNumber("PDH/Total Current (A)", pdh.getTotalCurrent());
+        SmartDashboard.putNumber("PDH/Voltage (V)", pdh.getVoltage());
+        SmartDashboard.putNumber("PDH/Swerve Drive Current (A)", swerve.getDriveSupplyCurrentAmps());
+    }
+
     public void publishBackupStartPoseDiagnostics() {
         final Pose2d currentPose = swerve.getState().Pose;
         final double expectedX = backupAndShootExpectedStartPose.getX();

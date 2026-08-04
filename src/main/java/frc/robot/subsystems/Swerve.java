@@ -51,7 +51,7 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     // Supply current limit applied to drive motors after swerve framework initialization.
     // Kept here (not TunerConstants.driveInitialConfigs) so it survives Tuner X regeneration
     // and does not interfere with the framework's own motor config sequence.
-    private static final double kDriveSupplyCurrentLimitAmps = 100.0;
+    private static final double kDriveSupplyCurrentLimitAmps = 60.0;
 
     public Swerve() {
         super(
@@ -136,6 +136,18 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
         setOperatorPerspectiveForward(kRedAlliancePerspectiveRotation);
         m_hasAppliedOperatorPerspective = true;
         m_lastOperatorPerspectiveAlliance = Alliance.Red;
+    }
+
+    /**
+     * Returns the sum of supply current (amps) across all 4 drive motors.
+     * Uses cached Phoenix 6 status signals — safe to call every loop.
+     */
+    public double getDriveSupplyCurrentAmps() {
+        double total = 0;
+        for (int i = 0; i < 4; i++) {
+            total += getModule(i).getDriveMotor().getSupplyCurrent().getValueAsDouble();
+        }
+        return total;
     }
 
     /**
