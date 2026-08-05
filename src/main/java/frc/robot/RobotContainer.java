@@ -97,16 +97,13 @@ public class RobotContainer {
         configureManualDriveBindings();
         limelight.setDefaultCommand(updateVisionCommand());
 
-        // On teleop start: if vision never found 2 AprilTags, reset to known starting pose based on alliance.
-        // Blue alliance: x=3, y=4, facing 0° (blue hub). Red alliance (or unknown): x=13, y=4, facing 180° (red hub).
+        // On teleop start: if vision never found 2 AprilTags, reset to the hub-front position for the
+        // current alliance. Derived from Landmarks hub coordinates + 41" offset — stays correct if
+        // field measurements change. Handles the "nothing auto" strategy where the robot sits at the
+        // hub and the camera cannot see tags at close range (too close for a valid pose solve).
         RobotModeTriggers.teleop().onTrue(Commands.runOnce(() -> {
             if (!limelight.hasInitializedPose()) {
-                var alliance = DriverStation.getAlliance();
-                if (alliance.isPresent() && alliance.get() == DriverStation.Alliance.Blue) {
-                    swerve.resetPoseAndGyro(new Pose2d(3.0, 4.0, Rotation2d.fromDegrees(0.0)));
-                } else {
-                    swerve.resetPoseAndGyro(new Pose2d(13.0, 4.0, Rotation2d.fromDegrees(180.0)));
-                }
+                swerve.resetPoseAndGyro(Landmarks.practiceInitialPose());
             }
         }));
 
@@ -229,7 +226,6 @@ public class RobotContainer {
      * if loop overrun budget becomes a concern.
      */
     public void publishPdhData() {
-        SmartDashboard.putNumber("PDH/Total Current (A)", pdh.getTotalCurrent());
         SmartDashboard.putNumber("PDH/Voltage (V)", pdh.getVoltage());
         SmartDashboard.putNumber("PDH/Swerve Drive Current (A)", swerve.getDriveSupplyCurrentAmps());
     }

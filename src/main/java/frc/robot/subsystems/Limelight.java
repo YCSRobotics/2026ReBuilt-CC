@@ -43,7 +43,6 @@ public class Limelight extends SubsystemBase {
     private final NetworkTableEntry visionOdometryYawDeltaDegEntry;
     private final NetworkTableEntry visionHeadingWithinBandEntry;
     private final NetworkTableEntry visionPoseOutOfFieldEntry;
-    private final NetworkTableEntry visionJumpRejectedEntry;
     private final NetworkTableEntry visionCameraHealthyEntry;
 
     public Limelight(String name) {
@@ -57,7 +56,6 @@ public class Limelight extends SubsystemBase {
         this.visionOdometryYawDeltaDegEntry = telemetryTable.getEntry("Vision/Odom Yaw Delta (deg)");
         this.visionHeadingWithinBandEntry = telemetryTable.getEntry("Vision Heading Within Band");
         this.visionPoseOutOfFieldEntry = telemetryTable.getEntry("Vision/Pose Out Of Field");
-        this.visionJumpRejectedEntry = telemetryTable.getEntry("Vision/Jump Rejected");
         this.visionCameraHealthyEntry = telemetryTable.getEntry("Vision/Camera Healthy");
 
         // Configure camera pose relative to robot center
@@ -250,17 +248,6 @@ public class Limelight extends SubsystemBase {
             || y < 0 || y > Constants.Field.kFieldWidthMeters;
         visionPoseOutOfFieldEntry.setBoolean(outOfField);
         if (outOfField) {
-            visionJumpRejectedEntry.setBoolean(false);
-            return Optional.empty();
-        }
-
-        // Reject measurements that are implausibly far from the current odometry pose.
-        // A robot cannot physically travel more than kMaxVisionJumpMeters in one 20 ms loop.
-        // This catches bad MegaTag2 solves that are within field bounds but still wildly wrong.
-        final double jumpMeters = fusedPose.getTranslation().getDistance(currentRobotPose.getTranslation());
-        final boolean jumpRejected = jumpMeters > Constants.Limelight.kMaxVisionJumpMeters;
-        visionJumpRejectedEntry.setBoolean(jumpRejected);
-        if (jumpRejected) {
             return Optional.empty();
         }
 

@@ -30,6 +30,25 @@ Every tuning decision involves a tradeoff between current draw (battery protecti
 
 ---
 
+## Competition Day Checklist
+
+**Before first match of the day — RoboRIO disk space**
+Phoenix SignalLogger (hoot files) fills RoboRIO storage silently. When the disk is full it stops writing with no DS warning — you lose all log data for subsequent matches. This happened at MIANN Q16 (2026-08-01).
+
+```bash
+# Check available space (connect via USB or robot WiFi)
+ssh lvuser@10.TEAM.2 "df -h /home/lvuser && ls -lh /home/lvuser/logs/ | tail -20"
+```
+
+- Copy any hoot files you want to keep to the DS laptop first
+- Then delete all hoot files before the competition starts:
+  ```bash
+  ssh lvuser@10.TEAM.2 "rm /home/lvuser/logs/*.hoot"
+  ```
+- RoboRIO has ~512MB–1GB usable. A full match day (8+ matches + practice) fills it easily with a CANivore logging at high frequency.
+
+---
+
 ## Repository Context
 
 This is a WPILib command-based Java robot for FRC Team YCS Robotics, 2026 season. The robot shoots fuel into a hub, intakes from the floor, and hangs. Vision localization drives an aim-and-shoot feature.
@@ -123,6 +142,6 @@ Full analysis: [docs/analysis/MISAL_Q74_localization_analysis.md](docs/analysis/
 - **Open:** `kVisionXYStdDevCoefficient = 0.02` is a starting point and needs empirical tuning against match logs.
 
 ### Known path tracking issues (from MISAL Q74 log analysis)
-- **Fixed:** `kMaxVisionJumpMeters` lowered from 1.0 to 0.5m in `Constants.java` — a 0.36m mid-trajectory localization jump passed through the old gate in Q74.
+- **Fixed:** Hard vision jump gate removed entirely (2026-08-05) — the gate blocked legitimate drift corrections during teleop (observed in Q11 MIANN). The Kalman filter's std dev scaling handles noisy measurements without a hard rejection threshold. The Q74 0.36m jump issue should be addressed through `kVisionXYStdDevCoefficient` tuning instead.
 - **Open:** Path feedback too aggressive — `kMaxPathFeedbackSpeedMps = 0.35` and X/Y PID P=10 in `Swerve.java` caused sustained 0.20–0.25 m/s overshoot above the 0.80 m/s trajectory max. Reduce clamp to 0.15 and P to 5; tune on practice field.
 - **Open:** Deceleration lag cascades from overshoot above. Also verify Choreo robot model mass (62.14 kg) matches current build weight and regenerate trajectory if different.

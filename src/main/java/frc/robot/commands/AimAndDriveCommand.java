@@ -32,7 +32,7 @@ public class AimAndDriveCommand extends Command {
         .withMaxAbsRotationalRate(Driving.kMaxRotationalRate)
         .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
         .withSteerRequestType(SteerRequestType.MotionMagicExpo)
-        .withForwardPerspective(ForwardPerspectiveValue.BlueAlliance)
+        .withForwardPerspective(ForwardPerspectiveValue.OperatorPerspective)
         .withHeadingPID(4, 0, 0);
 
     public AimAndDriveCommand(
@@ -54,14 +54,16 @@ public class AimAndDriveCommand extends Command {
     public boolean isAimed() {
         final Rotation2d targetHeading = fieldCentricFacingAngleRequest.TargetDirection;
         final Rotation2d currentHeadingInBlueAlliancePerspective = swerve.getState().Pose.getRotation();
-        return GeometryUtil.isNear(targetHeading, currentHeadingInBlueAlliancePerspective, kAimTolerance);
+        final Rotation2d currentHeadingInOperatorPerspective = currentHeadingInBlueAlliancePerspective.rotateBy(swerve.getOperatorForwardDirection());
+        return GeometryUtil.isNear(targetHeading, currentHeadingInOperatorPerspective, kAimTolerance);
     }
 
     private Rotation2d getDirectionToHub() {
         final Translation2d hubPosition = Landmarks.hubPosition();
         final Translation2d robotPosition = swerve.getState().Pose.getTranslation();
         final Rotation2d hubDirectionInBlueAlliancePerspective = hubPosition.minus(robotPosition).getAngle();
-        return hubDirectionInBlueAlliancePerspective;
+        final Rotation2d hubDirectionInOperatorPerspective = hubDirectionInBlueAlliancePerspective.rotateBy(swerve.getOperatorForwardDirection());
+        return hubDirectionInOperatorPerspective;
     }
 
     @Override
