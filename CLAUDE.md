@@ -47,6 +47,12 @@ ssh lvuser@10.TEAM.2 "df -h /home/lvuser && ls -lh /home/lvuser/logs/ | tail -20
   ```
 - RoboRIO has ~512MB–1GB usable. A full match day (8+ matches + practice) fills it easily with a CANivore logging at high frequency.
 
+**Between practice matches — pose initialization without power cycle**
+
+At the end of each practice match, **driver steers the robot back to the hub starting position before disabling.**
+
+Why: `m_hasInitializedPose` is never reset on disable (intentional). With the hard jump gate removed, Kalman fusion corrects any pose error within 1–2 seconds of driving once tags are visible. But driving to hub under power at match-end means the next match starts with an already-correct pose — no correction needed. Powered driving preserves accurate odometry; pushing the robot after disable does not.
+
 ---
 
 ## Repository Context
@@ -107,12 +113,16 @@ Uses a single Limelight 4 with MegaTag2 (orientation-constrained XY solve). Runs
 5. If outside band: fuse MegaTag2 XY only, keep odometry heading (translation-only mode)
 6. XY stddev scales dynamically: `max(0.05, 0.02 × dist² / tagCount²)` — distant single-tag estimates get low trust automatically
 
-**Pose initialization:** On boot, `getMeasurement()` uses MegaTag1 (not MegaTag2) to initialize the pose, requiring 2+ tags. If vision never initializes, teleop start resets to a fallback pose based on alliance (Blue: x=3, y=4, 0°; Red: x=13, y=4, 180°).
+**Pose initialization:** On boot, `getMeasurement()` uses MegaTag1 (not MegaTag2) to initialize the pose, requiring 2+ tags. If vision never initializes (e.g. robot touching hub — tags fill FOV, no valid solve), teleop start falls back to `Landmarks.practiceInitialPose()`, which computes the hub-front position geometrically per alliance. Vision self-corrects within ~1–2 seconds of driving away from the hub once tags are visible. `m_hasInitializedPose` is intentionally never reset on disable — resetting would snap the pose to hub-front if the robot brownouts and re-enables mid-match.
+
+**Do not use hard distance gates for vision rejection.** A hard threshold (e.g. reject if jump > 0.5m) cannot distinguish between a bad MegaTag solve (should reject) and a legitimate vision correction of accumulated odometry drift (should accept). After 10+ seconds of aggressive driving, drift can exceed 0.5m — a gate rejects all corrections and creates a positive feedback loop: drift → rejection → more drift → pose increasingly wrong. The Kalman filter's dynamic std devs are the correct mechanism: a measurement far from current pose gets high std devs (low trust) and is blended in slowly, not hard-rejected. Use `kMaxTagAmbiguity` (ambiguity score) to reject genuinely bad solves at the source instead.
 
 ### Aim-and-shoot — `AimAndDriveCommand` + `PrepareShotCommand` + `SubsystemCommands`
-`AimAndDriveCommand` uses CTRE's `FieldCentricFacingAngle` request, always in **BlueAlliance** forward perspective regardless of actual alliance. It rotates the robot to face `Landmarks.hubPosition()`, which returns the correct hub (blue or red) based on the Driver Station alliance.
+`AimAndDriveCommand` uses CTRE's `FieldCentricFacingAngle` request in **OperatorPerspective** — the same perspective as `ManualDriveCommand` — so driver stick feel is consistent on both alliances. CTRE handles the alliance flip internally. It rotates the robot to face `Landmarks.hubPosition()`, which returns the correct hub (blue or red) based on the Driver Station alliance. `isAimed()` and `getDirectionToHub()` apply `.rotateBy(swerve.getOperatorForwardDirection())` to keep all heading math in the same frame as the request.
 
-`PrepareShotCommand` uses an `InterpolatingTreeMap` (shot table) to look up shooter RPM and hood position from distance-to-hub. Distance is measured center-to-center (robot center to hub center), not bumper-to-hub-face.
+`PrepareShotCommand` has **two distinct shot constant sets** that serve different purposes — do not merge them:
+- **Interpolation table** (`*_ROW_SHOT`): anchors for the `InterpolatingTreeMap` used by dynamic `aimAndShoot()`. Distance is measured center-to-center at runtime from the pose estimator.
+- **Button presets** (`*_KEY_SHOT`): fixed RPM/hood values tied to operator buttons (Y/X/B/A) and autonomous. Bypass interpolation entirely — driver drives to a known position and presses the button. Values were field-tuned independently and intentionally differ from the interpolation anchors.
 
 `SubsystemCommands` is a **command factory, not a subsystem** — it holds no hardware, just composes commands from subsystems passed in at construction. `aimAndShoot()` fires when aimed + shooter at speed + translation stopped (not full stop — checking omega would fight the heading PID).
 
@@ -126,6 +136,21 @@ During Choreo segments, the Limelight default command is preempted by the trajec
 
 ---
 
+## Working with this Codebase
+
+**Check the baseline git tag before proposing fixes for regressions.**
+If a bug looks like something that used to work but broke when someone changed it, diff against `baseline-2026-cc` first:
+```bash
+git show baseline-2026-cc:src/main/java/frc/robot/commands/SomeCommand.java
+git diff baseline-2026-cc HEAD -- src/main/java/frc/robot/commands/SomeCommand.java
+```
+The original correct design is often already there. Someone removed it without understanding the full consequences. The `AimAndDriveCommand` OperatorPerspective fix (2026-08-05) is the canonical example — the baseline had the complete correct implementation; the "fix" needed was restoring it, not designing something new.
+
+**Research the full codebase before drawing conclusions.**
+Before stating that telemetry, wiring, or functionality is "missing," grep for related classes and registration calls across the full `src/` tree. Reading a single file is not sufficient for architectural questions. Example: `SwerveTelemetry.java` exists and is wired in `RobotContainer.java` via `registerTelemetry()` — reading only `Swerve.java` would incorrectly conclude telemetry is absent.
+
+---
+
 ## Offseason Goals (through September 2026)
 
 1. **Understand the baseline** — develop deep familiarity with every subsystem and command
@@ -136,12 +161,15 @@ During Choreo segments, the Limelight default command is preempted by the trajec
 Full analysis: [docs/analysis/MISAL_Q74_localization_analysis.md](docs/analysis/MISAL_Q74_localization_analysis.md)
 - **Fixed:** Unbounded Pigeon2 yaw fed to `SetRobotOrientation` (raw value reached 1820°). Fixed in `26a0897`.
 - **Fixed:** Flat XY stddev (0.1m) trusted distant single-tag estimates equally to close multi-tag estimates. Fixed in `19b0466`.
-- **Fixed:** No field boundary validation — implemented in `Limelight.java` (out-of-field rejection + `kMaxVisionJumpMeters` gate).
+- **Fixed:** No field boundary validation — implemented in `Limelight.java` (out-of-field rejection).
+- **Fixed:** Hard vision jump gate (`kMaxVisionJumpMeters`) removed entirely (2026-08-05) — it blocked legitimate drift corrections during teleop and created a drift feedback loop. Kalman filter std dev scaling is the correct rejection mechanism.
+- **Fixed:** Fallback pose was hardcoded eyeballed values (Blue: x=3.0m — 0.58m off). Now uses `Landmarks.practiceInitialPose()` which computes hub-front geometrically per alliance.
+- **Fixed:** No ambiguity gate — bad PnP solves (high ambiguity) could inject wrong pose. Now rejected via `kMaxTagAmbiguity = 0.7` in `getMeasurement()`.
 - **Fixed:** No camera health/disconnect monitoring — implemented via `hasRecentMeasurement()` with `kCameraHealthTimeoutSeconds = 0.5`.
 - **Open:** Odometry stddev in `Swerve` constructor (`VecBuilder.fill(0.1, 0.1, 0.1)`) has not been tuned relative to the new dynamic vision stddev. Tune last — depends on `kVisionXYStdDevCoefficient` being validated first.
 - **Open:** `kVisionXYStdDevCoefficient = 0.02` is a starting point and needs empirical tuning against match logs.
 
 ### Known path tracking issues (from MISAL Q74 log analysis)
-- **Fixed:** Hard vision jump gate removed entirely (2026-08-05) — the gate blocked legitimate drift corrections during teleop (observed in Q11 MIANN). The Kalman filter's std dev scaling handles noisy measurements without a hard rejection threshold. The Q74 0.36m jump issue should be addressed through `kVisionXYStdDevCoefficient` tuning instead.
+- **Fixed:** Hard vision jump gate removed entirely (2026-08-05); Q74 bad solve now addressed at source via `kMaxTagAmbiguity = 0.7` ambiguity rejection.
 - **Open:** Path feedback too aggressive — `kMaxPathFeedbackSpeedMps = 0.35` and X/Y PID P=10 in `Swerve.java` caused sustained 0.20–0.25 m/s overshoot above the 0.80 m/s trajectory max. Reduce clamp to 0.15 and P to 5; tune on practice field.
 - **Open:** Deceleration lag cascades from overshoot above. Also verify Choreo robot model mass (62.14 kg) matches current build weight and regenerate trajectory if different.
