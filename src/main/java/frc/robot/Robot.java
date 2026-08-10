@@ -28,9 +28,19 @@ public class Robot extends TimedRobot {
      * initialization code.
      */
     public Robot() {
-        SignalLogger.setPath("/home/lvuser/logs");
+        // Use USB drive at /u if plugged in; fall back to internal RoboRIO storage.
+        // On RoboRIO 1, SanDisk or any USB drive mounts automatically at /u.
+        String logPath = "/home/lvuser/logs";
+        java.io.File usbMount = new java.io.File("/u");
+        if (usbMount.exists() && usbMount.canWrite()) {
+            logPath = "/u/logs";
+            new java.io.File(logPath).mkdirs();
+        }
+        SmartDashboard.putString("LogPath", logPath);
+
+        SignalLogger.setPath(logPath);
         SignalLogger.start();
-        DataLogManager.start();
+        DataLogManager.start(logPath);
         DriverStation.startDataLog(DataLogManager.getLog());
 
         // Instantiate our RobotContainer.  This will perform all our button bindings, and put our
