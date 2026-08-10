@@ -197,6 +197,20 @@ public class Limelight extends SubsystemBase {
             return Optional.empty();
         }
 
+        // Reject if any visible tag has high ambiguity — the PnP solver cannot reliably distinguish
+        // between the two candidate poses, so accepting the measurement risks injecting a bad solve.
+        // This is the root-cause fix for large mid-trajectory jumps (e.g. MISAL Q74).
+        // MegaTag2 is largely immune (heading constraint eliminates the mirror solution), but the
+        // fiducials come from the same frame, so this check covers both estimates together.
+        final RawFiducial[] fiducials = LimelightHelpers.getRawFiducials(name);
+        if (fiducials != null) {
+            for (RawFiducial tag : fiducials) {
+                if (tag.ambiguity > Constants.Limelight.kMaxTagAmbiguity) {
+                    return Optional.empty();
+                }
+            }
+        }
+
         // Combine MegaTag2 translation with MegaTag1 rotation as the raw vision estimate.
         final Rotation2d visionRotation = poseEstimate_MegaTag1.pose.getRotation();
         final var translation = poseEstimate_MegaTag2.pose.getTranslation();

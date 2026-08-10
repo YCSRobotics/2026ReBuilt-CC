@@ -152,6 +152,16 @@ public final class Constants {
         public static final double kVisionXYStdDevOutOfBandMinMeters = 0.3;
 
         /**
+         * Maximum AprilTag pose ambiguity accepted for a vision measurement.
+         * Ambiguity is the ratio of the two PnP reprojection errors (best / second-best solution).
+         * A ratio near 1.0 means both solutions fit equally well — the solver cannot distinguish them.
+         * Typical values: close tag head-on → 0.1–0.3; far/oblique tag → 0.7–1.0.
+         * Standard FRC threshold (used by 6328, 254, 1678): 0.7.
+         * If ANY visible tag exceeds this threshold, the entire measurement is rejected.
+         */
+        public static final double kMaxTagAmbiguity = 0.7;
+
+        /**
          * Camera health timeout (seconds). If no valid measurement has been accepted within this
          * window, the vision health indicator on SmartDashboard turns false.
          */
