@@ -5,6 +5,9 @@ import java.util.function.Supplier;
 import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import edu.wpi.first.util.datalog.DataLog;
+import edu.wpi.first.util.datalog.DoubleLogEntry;
+import edu.wpi.first.wpilibj.DataLogManager;
 
 import choreo.Choreo.TrajectoryLogger;
 import choreo.auto.AutoFactory;
@@ -53,6 +56,15 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     // and does not interfere with the framework's own motor config sequence.
     private static final double kDriveSupplyCurrentLimitAmps = 60.0;
 
+    // Module index order matches constructor: FrontLeft=0, FrontRight=1, BackLeft=2, BackRight=3
+    private static final String[] kModuleNames = {"FL", "FR", "BL", "BR"};
+
+    // Per-module drive motor log entries — written to wpilog via DataLogManager, not SmartDashboard.
+    // Cached Phoenix 6 signals: reading these in periodic() does not trigger CAN bus transactions.
+    private final DoubleLogEntry[] m_driveSupplyCurrent = new DoubleLogEntry[4];
+    private final DoubleLogEntry[] m_driveStatorCurrent = new DoubleLogEntry[4];
+    private final DoubleLogEntry[] m_driveVelocityMps   = new DoubleLogEntry[4];
+
     public Swerve() {
         super(
             TunerConstants.DrivetrainConstants,
@@ -70,6 +82,13 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
             .withSupplyCurrentLimitEnable(true);
         for (int i = 0; i < 4; i++) {
             getModule(i).getDriveMotor().getConfigurator().apply(driveCurrentLimits);
+        }
+
+        DataLog log = DataLogManager.getLog();
+        for (int i = 0; i < 4; i++) {
+            m_driveSupplyCurrent[i] = new DoubleLogEntry(log, "/Swerve/" + kModuleNames[i] + "/DriveSupplyCurrent");
+            m_driveStatorCurrent[i] = new DoubleLogEntry(log, "/Swerve/" + kModuleNames[i] + "/DriveStatorCurrent");
+            m_driveVelocityMps[i]   = new DoubleLogEntry(log, "/Swerve/" + kModuleNames[i] + "/DriveVelocityMps");
         }
     }
 
@@ -264,6 +283,13 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
 
         /* Publish raw Pigeon 2 yaw for heading troubleshooting (SmartDashboard is on NT) */
         SmartDashboard.putNumber("Pigeon Raw Yaw (deg)", getPigeon2().getYaw().getValueAsDouble());
+
+        /* Log per-module drive motor signals to wpilog for post-match analysis */
+        for (int i = 0; i < 4; i++) {
+            m_driveSupplyCurrent[i].append(getModule(i).getDriveMotor().getSupplyCurrent().getValueAsDouble());
+            m_driveStatorCurrent[i].append(getModule(i).getDriveMotor().getStatorCurrent().getValueAsDouble());
+            m_driveVelocityMps[i].append(getModule(i).getCurrentState().speedMetersPerSecond);
+        }
     }
 
     /**

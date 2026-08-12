@@ -78,18 +78,21 @@ public class Robot extends TimedRobot {
 
     @Override
     public void disabledInit() {
+        SignalLogger.stop();
         // Reduce Limelight thermal output while disabled by throttling frame processing
         LimelightHelpers.SetThrottle("limelight", 150);
     }
 
     @Override
     public void autonomousInit() {
+        SignalLogger.start();
         // Full processing speed for autonomous (throttle = 0)
         LimelightHelpers.SetThrottle("limelight", 0);
     }
 
     @Override
     public void teleopInit() {
+        SignalLogger.start();
         // Full processing speed for teleop (throttle = 0)
         LimelightHelpers.SetThrottle("limelight", 0);
     }
