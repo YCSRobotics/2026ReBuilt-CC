@@ -47,6 +47,28 @@ ssh lvuser@10.TEAM.2 "df -h /home/lvuser && ls -lh /home/lvuser/logs/ | tail -20
   ```
 - RoboRIO has ~512MB–1GB usable. A full match day (8+ matches + practice) fills it easily with a CANivore logging at high frequency.
 
+**Retrieving logs from USB drive — unmount before cutting power**
+
+The RoboRIO does not do a clean Linux shutdown when power is cut. Buffered writes are lost, leaving the FAT32 filesystem dirty and files invisible or unrecoverable on Windows. Always unmount first:
+
+USB mounts at `/media/sda1` on this RoboRIO (not `/u` as documented). The robot code checks both.
+
+Manual log copy if auto-logging fails:
+```bash
+cp /home/lvuser/logs/*.wpilog /media/sda1/
+cp /home/lvuser/logs/*.hoot   /media/sda1/
+```
+
+Before pulling the drive, always unmount cleanly (power still on):
+```bash
+ssh lvuser@10.TEAM.2 "sync && umount /media/sda1"
+```
+
+After that command completes, it is safe to pull the USB drive and turn off the robot.
+If you accidentally pulled the drive without unmounting, try `chkdsk D: /f` (Admin Command Prompt on Windows) to recover the directory structure.
+
+**RoboRIO USB port note:** One of the two physical USB ports is non-functional (no signal). Use the working port. There is also an unidentified USB device already plugged into the RoboRIO — origin unknown, do not remove until identified.
+
 **Between practice matches — pose initialization without power cycle**
 
 At the end of each practice match, **driver steers the robot back to the hub starting position before disabling.**

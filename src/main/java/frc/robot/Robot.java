@@ -28,13 +28,17 @@ public class Robot extends TimedRobot {
      * initialization code.
      */
     public Robot() {
-        // Use USB drive at /u if plugged in; fall back to internal RoboRIO storage.
-        // On RoboRIO 1, SanDisk or any USB drive mounts automatically at /u.
+        // Use USB drive if plugged in; fall back to internal RoboRIO storage.
+        // RoboRIO 1 may mount USB at /u (documented) or /media/sda1 (observed in practice).
+        // Check both; use the first writable one found.
         String logPath = "/home/lvuser/logs";
-        java.io.File usbMount = new java.io.File("/u");
-        if (usbMount.exists() && usbMount.canWrite()) {
-            logPath = "/u/logs";
-            new java.io.File(logPath).mkdirs();
+        for (String candidate : new String[]{"/u", "/media/sda1"}) {
+            java.io.File mount = new java.io.File(candidate);
+            if (mount.exists() && mount.canWrite()) {
+                logPath = candidate + "/logs";
+                new java.io.File(logPath).mkdirs();
+                break;
+            }
         }
         SmartDashboard.putString("LogPath", logPath);
 
