@@ -68,12 +68,16 @@ public class Robot extends TimedRobot {
         // and running subsystem periodic() methods.  This must be called from the robot's periodic
         // block in order for anything in the Command-based framework to work.
         CommandScheduler.getInstance().run();
-        m_robotContainer.publishBackupStartPoseDiagnostics();
         m_robotContainer.publishPdhData();
 
         SmartDashboard.putBoolean("Brownout", RobotController.isBrownedOut());
         SmartDashboard.putNumber("BatteryVoltage", RobotController.getBatteryVoltage());
         SmartDashboard.putBoolean("CommLink", DriverStation.isDSAttached());
+    }
+
+    @Override
+    public void disabledPeriodic() {
+        m_robotContainer.publishBackupStartPoseDiagnostics();
     }
 
     @Override
