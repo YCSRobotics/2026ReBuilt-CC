@@ -47,27 +47,23 @@ ssh lvuser@10.TEAM.2 "df -h /home/lvuser && ls -lh /home/lvuser/logs/ | tail -20
   ```
 - RoboRIO has ~512MB–1GB usable. A full match day (8+ matches + practice) fills it easily with a CANivore logging at high frequency.
 
-**Retrieving logs from USB drive — unmount before cutting power**
+**USB external storage — ABANDONED (2026-08-25)**
 
-The RoboRIO does not do a clean Linux shutdown when power is cut. Buffered writes are lost, leaving the FAT32 filesystem dirty and files invisible or unrecoverable on Windows. Always unmount first:
+One of the two physical USB ports on the RoboRIO is non-functional (no signal). **Do not use USB log storage.** All logs go to internal flash at `/home/lvuser/logs`.
 
-USB mounts at `/media/sda1` on this RoboRIO (not `/u` as documented). The robot code checks both.
+Root cause of the Code-red incidents: `File.exists()` / `canWrite()` against a stale `/u` or `/media/sda1` mount blocks in the Linux kernel on a dead USB port. `Robot()` never returns, the DS never sees the robot program, and enable stays locked — even with no stick inserted if the mount entry persists. Robot code now unconditionally uses internal flash and never probes USB paths.
 
-Manual log copy if auto-logging fails:
+There is also an unidentified USB device already plugged into the RoboRIO — origin unknown, do not remove until identified. It may hold a stale mount point.
+
+**Retrieving logs — SCP over WiFi or USB-tether**
+
 ```bash
-cp /home/lvuser/logs/*.wpilog /media/sda1/
-cp /home/lvuser/logs/*.hoot   /media/sda1/
+# Copy logs to DS laptop (robot WiFi or USB-tether)
+scp lvuser@10.TEAM.2:/home/lvuser/logs/*.wpilog .
+scp lvuser@10.TEAM.2:/home/lvuser/logs/*.hoot   .
 ```
 
-Before pulling the drive, always unmount cleanly (power still on):
-```bash
-ssh lvuser@10.TEAM.2 "sync && umount /media/sda1"
-```
-
-After that command completes, it is safe to pull the USB drive and turn off the robot.
-If you accidentally pulled the drive without unmounting, try `chkdsk D: /f` (Admin Command Prompt on Windows) to recover the directory structure.
-
-**RoboRIO USB port note:** One of the two physical USB ports is non-functional (no signal). Use the working port. There is also an unidentified USB device already plugged into the RoboRIO — origin unknown, do not remove until identified.
+Because logs are internal-only, **disk management is more critical than before.** Run the disk space check and hoot cleanup at the start of every session, not just competition day.
 
 **Between practice matches — pose initialization without power cycle**
 

@@ -28,24 +28,22 @@ public class Robot extends TimedRobot {
      * initialization code.
      */
     public Robot() {
-        // Use USB drive if plugged in; fall back to internal RoboRIO storage.
-        // RoboRIO 1 may mount USB at /u (documented) or /media/sda1 (observed in practice).
-        // Check both; use the first writable one found.
-        String logPath = "/home/lvuser/logs";
-        for (String candidate : new String[]{"/u", "/media/sda1"}) {
-            java.io.File mount = new java.io.File(candidate);
-            if (mount.exists() && mount.canWrite()) {
-                logPath = candidate + "/logs";
-                new java.io.File(logPath).mkdirs();
-                break;
-            }
-        }
+        // Internal flash only. Do not probe /u or /media/sda1: a failed USB port or
+        // stale mount makes File.exists()/canWrite() block in the kernel, so Robot()
+        // never finishes and the Driver Station shows red code with enable locked out.
+        final String logPath = "/home/lvuser/logs";
+        new java.io.File(logPath).mkdirs();
         SmartDashboard.putString("LogPath", logPath);
 
-        SignalLogger.setPath(logPath);
-        SignalLogger.start();
-        DataLogManager.start(logPath);
-        DriverStation.startDataLog(DataLogManager.getLog());
+        try {
+            SignalLogger.setPath(logPath);
+            SignalLogger.start();
+            DataLogManager.start(logPath);
+            DriverStation.startDataLog(DataLogManager.getLog());
+        } catch (RuntimeException ex) {
+            // Logging must not prevent the robot program from starting.
+            DriverStation.reportError("Failed to start logging: " + ex.getMessage(), ex.getStackTrace());
+        }
 
         // Instantiate our RobotContainer.  This will perform all our button bindings, and put our
         // autonomous chooser on the dashboard.
@@ -82,21 +80,33 @@ public class Robot extends TimedRobot {
 
     @Override
     public void disabledInit() {
-        SignalLogger.stop();
+        try {
+            SignalLogger.stop();
+        } catch (RuntimeException ex) {
+            DriverStation.reportError("Failed to stop SignalLogger: " + ex.getMessage(), false);
+        }
         // Reduce Limelight thermal output while disabled by throttling frame processing
         LimelightHelpers.SetThrottle("limelight", 150);
     }
 
     @Override
     public void autonomousInit() {
-        SignalLogger.start();
+        try {
+            SignalLogger.start();
+        } catch (RuntimeException ex) {
+            DriverStation.reportError("Failed to start SignalLogger: " + ex.getMessage(), false);
+        }
         // Full processing speed for autonomous (throttle = 0)
         LimelightHelpers.SetThrottle("limelight", 0);
     }
 
     @Override
     public void teleopInit() {
-        SignalLogger.start();
+        try {
+            SignalLogger.start();
+        } catch (RuntimeException ex) {
+            DriverStation.reportError("Failed to start SignalLogger: " + ex.getMessage(), false);
+        }
         // Full processing speed for teleop (throttle = 0)
         LimelightHelpers.SetThrottle("limelight", 0);
     }
