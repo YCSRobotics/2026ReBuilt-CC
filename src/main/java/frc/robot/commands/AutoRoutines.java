@@ -67,6 +67,7 @@ public final class AutoRoutines {
     }
 
     public void configure() {
+        autoChooser.addCmd("Do Nothing", Commands::none);
         autoChooser.addRoutine("Outpost and Depot", this::outpostAndDepotRoutine);
         autoChooser.addRoutine("Outpost and Shoot", this::outpostAndShootRoutine);
         autoChooser.addRoutine("Bump to Collect Fuel", this::bumpToCollectFuelRoutine);
