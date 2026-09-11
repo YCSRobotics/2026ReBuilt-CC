@@ -12,7 +12,6 @@ import com.ctre.phoenix6.swerve.SwerveRequest.ForwardPerspectiveValue;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants.Driving;
 import frc.robot.Landmarks;
@@ -42,8 +41,6 @@ public class AimAndDriveCommand extends Command {
     ) {
         this.swerve = swerve;
         this.inputSmoother = new DriveInputSmoother(forwardInput, leftInput);
-        SmartDashboard.putNumber("Aim Current Heading (deg)", 0.0);
-        SmartDashboard.putNumber("Aim Target Heading (deg)", 0.0);
         addRequirements(swerve);
     }
 
@@ -70,10 +67,6 @@ public class AimAndDriveCommand extends Command {
     public void execute() {
         final ManualDriveInput input = inputSmoother.getSmoothedInput();
         final Rotation2d targetHeading = getDirectionToHub();
-        final Rotation2d currentHeading = swerve.getState().Pose.getRotation();
-
-        SmartDashboard.putNumber("Aim Current Heading (deg)", currentHeading.getDegrees());
-        SmartDashboard.putNumber("Aim Target Heading (deg)", targetHeading.getDegrees());
 
         swerve.setControl(
             fieldCentricFacingAngleRequest

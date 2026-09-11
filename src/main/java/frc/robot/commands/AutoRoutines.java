@@ -73,8 +73,6 @@ public final class AutoRoutines {
         autoChooser.addRoutine("Bump to Collect Fuel", this::bumpToCollectFuelRoutine);
         autoChooser.addRoutine("Backup and Shoot", this::backupAndShootRoutine);
         autoChooser.addRoutine("Back Aim and Shoot", this::backAimAndShootRoutine);
-        SmartDashboard.putBoolean("Auto Chooser Published", true);
-        SmartDashboard.putString("Auto Chooser Debug", "AutoRoutines.configure() ran");
         SmartDashboard.putData("Auto Chooser", autoChooser);
         RobotModeTriggers.autonomous().whileTrue(autoChooser.selectedCommandScheduler());
     }

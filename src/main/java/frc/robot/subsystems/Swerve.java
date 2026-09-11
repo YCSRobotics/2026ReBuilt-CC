@@ -23,7 +23,6 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import static edu.wpi.first.units.Units.Amps;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -280,9 +279,6 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
             m_hasAppliedOperatorPerspective = true;
             m_lastOperatorPerspectiveAlliance = allianceToApply;
         }
-
-        /* Publish raw Pigeon 2 yaw for heading troubleshooting (SmartDashboard is on NT) */
-        SmartDashboard.putNumber("Pigeon Raw Yaw (deg)", getPigeon2().getYaw().getValueAsDouble());
 
         /* Log per-module drive motor signals to wpilog for post-match analysis */
         for (int i = 0; i < 4; i++) {

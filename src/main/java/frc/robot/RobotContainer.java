@@ -4,8 +4,6 @@
 
 package frc.robot;
 
-import static edu.wpi.first.units.Units.MetersPerSecond;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -22,8 +20,8 @@ import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.PowerDistribution;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import frc.robot.Constants.Driving;
 import frc.robot.commands.AutoRoutines;
 import frc.robot.commands.ManualDriveCommand;
 import frc.robot.commands.PrepareShotCommand;
@@ -51,6 +49,8 @@ public class RobotContainer {
     private static final double kStartPoseReadyTranslationToleranceMeters = 0.10;
     private static final double kStartPoseReadyHeadingToleranceDegrees = 3.0;
 
+    private static final double kBackupPosePublishPeriodSeconds = 1.0;
+
     private final PowerDistribution pdh = new PowerDistribution(5, PowerDistribution.ModuleType.kRev);
     private final Swerve swerve = new Swerve();
     private final IntakePivot intakePivot = new IntakePivot();
@@ -62,7 +62,8 @@ public class RobotContainer {
     private final Hanger hanger = new Hanger();
     private final Limelight limelight = new Limelight("limelight");
 
-    private final SwerveTelemetry swerveTelemetry = new SwerveTelemetry(Driving.kMaxSpeed.in(MetersPerSecond));
+    private final SwerveTelemetry swerveTelemetry = new SwerveTelemetry();
+    private double lastBackupPosePublishSeconds = Double.NEGATIVE_INFINITY;
     
     private final CommandXboxController driver = new CommandXboxController(0);
     private final CommandXboxController operator = new CommandXboxController(1);
@@ -220,17 +221,15 @@ public class RobotContainer {
     }
 
     /**
-     * Publishes PDH power data to SmartDashboard every loop.
-     * Values are logged automatically via DataLogManager (NT→wpilog) and visible in Elastic.
-     * NOTE: temporary Elastic live-view keys marked with [TEST] — remove before competition
-     * if loop overrun budget becomes a concern.
+     * Publishes Backup-and-Shoot start-pose error while disabled, at 1 Hz.
+     * Pose reset logic is unchanged; this is lining-up telemetry only.
      */
-    public void publishPdhData() {
-        SmartDashboard.putNumber("PDH/Voltage (V)", pdh.getVoltage());
-        SmartDashboard.putNumber("PDH/Swerve Drive Current (A)", swerve.getDriveSupplyCurrentAmps());
-    }
-
     public void publishBackupStartPoseDiagnostics() {
+        final double now = Timer.getFPGATimestamp();
+        if (now - lastBackupPosePublishSeconds < kBackupPosePublishPeriodSeconds) {
+            return;
+        }
+        lastBackupPosePublishSeconds = now;
         final Pose2d currentPose = swerve.getState().Pose;
         final double expectedX = backupAndShootExpectedStartPose.getX();
         final double expectedY = backupAndShootExpectedStartPose.getY();

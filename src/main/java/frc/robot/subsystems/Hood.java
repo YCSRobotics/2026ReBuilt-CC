@@ -15,7 +15,6 @@ import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -44,7 +43,6 @@ public class Hood extends SubsystemBase {
         leftServo.setBoundsMicroseconds(2000, 1800, 1500, 1200, 1000);
         rightServo.setBoundsMicroseconds(2000, 1800, 1500, 1200, 1000);
         setPosition(currentPosition);
-        SmartDashboard.putData(this);
     }
 
     /** Expects a position between 0.0 and 1.0 */

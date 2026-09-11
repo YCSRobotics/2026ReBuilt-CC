@@ -11,7 +11,6 @@ import edu.wpi.first.math.interpolation.InterpolatingTreeMap;
 import edu.wpi.first.math.interpolation.Interpolator;
 import edu.wpi.first.math.interpolation.InverseInterpolator;
 import edu.wpi.first.units.measure.Distance;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Landmarks;
 import frc.robot.subsystems.Hood;
@@ -85,7 +84,6 @@ public class PrepareShotCommand extends Command {
         final Shot shot = distanceToShotMap.get(distanceToHub);
         shooter.setRPM(shot.shooterRPM);
         hood.setPosition(shot.hoodPosition);
-        SmartDashboard.putNumber("Distance to Hub (inches)", distanceToHub.in(Inches));
     }
 
     @Override

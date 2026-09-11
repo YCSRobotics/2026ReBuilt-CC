@@ -19,7 +19,6 @@ import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
@@ -44,6 +43,13 @@ public class Limelight extends SubsystemBase {
     private final NetworkTableEntry visionHeadingWithinBandEntry;
     private final NetworkTableEntry visionPoseOutOfFieldEntry;
     private final NetworkTableEntry visionCameraHealthyEntry;
+    private final NetworkTableEntry allianceEntry;
+    private final NetworkTableEntry hubXEntry;
+    private final NetworkTableEntry hubYEntry;
+    private final NetworkTableEntry distanceToHubInchesEntry;
+    private String lastAllianceName = "";
+    private double lastHubX = Double.NaN;
+    private double lastHubY = Double.NaN;
 
     public Limelight(String name) {
         this.name = name;
@@ -57,6 +63,11 @@ public class Limelight extends SubsystemBase {
         this.visionHeadingWithinBandEntry = telemetryTable.getEntry("Vision Heading Within Band");
         this.visionPoseOutOfFieldEntry = telemetryTable.getEntry("Vision/Pose Out Of Field");
         this.visionCameraHealthyEntry = telemetryTable.getEntry("Vision/Camera Healthy");
+        final NetworkTable smartDashboard = NetworkTableInstance.getDefault().getTable("SmartDashboard");
+        this.allianceEntry = smartDashboard.getEntry("Alliance");
+        this.hubXEntry = smartDashboard.getEntry("Hub X (m)");
+        this.hubYEntry = smartDashboard.getEntry("Hub Y (m)");
+        this.distanceToHubInchesEntry = smartDashboard.getEntry("Distance to Hub (inches)");
 
         // Configure camera pose relative to robot center
         LimelightHelpers.setCameraPose_RobotSpace(
@@ -72,11 +83,7 @@ public class Limelight extends SubsystemBase {
 
     @Override
     public void periodic() {
-        // Hub used for aim/distance (Landmarks); publish so DS / AdvantageScope can verify Red vs Blue selection.
-        final Translation2d hubField = Landmarks.hubPosition();
-        SmartDashboard.putNumber("Hub X (m)", hubField.getX());
-        SmartDashboard.putNumber("Hub Y (m)", hubField.getY());
-
+        publishAllianceAndHubIfChanged();
         visionCameraHealthyEntry.setBoolean(hasRecentMeasurement());
 
         // Publish vision-based distance to AprilTag for dashboard and Elastic (always publish so keys exist in NT)
@@ -100,6 +107,22 @@ public class Limelight extends SubsystemBase {
         }
     }
 
+    private void publishAllianceAndHubIfChanged() {
+        final String allianceName = DriverStation.getAlliance().map(a -> a.name()).orElse("Unknown");
+        if (!allianceName.equals(lastAllianceName)) {
+            lastAllianceName = allianceName;
+            allianceEntry.setString(allianceName);
+        }
+
+        final Translation2d hubField = Landmarks.hubPosition();
+        if (hubField.getX() != lastHubX || hubField.getY() != lastHubY) {
+            lastHubX = hubField.getX();
+            lastHubY = hubField.getY();
+            hubXEntry.setDouble(lastHubX);
+            hubYEntry.setDouble(lastHubY);
+        }
+    }
+
     public String getName() {
         return name;
     }
@@ -111,13 +134,10 @@ public class Limelight extends SubsystemBase {
     public Command visionUpdateCommand(Swerve swerve) {
         return run(() -> {
             final Pose2d currentRobotPose = swerve.getState().Pose;
-            SmartDashboard.putString(
-                "Alliance",
-                DriverStation.getAlliance().map(a -> a.name()).orElse("Unknown"));
             final Translation2d robotPosition = currentRobotPose.getTranslation();
             final Translation2d hubPosition = Landmarks.hubPosition();
             final Distance distanceToHub = Meters.of(robotPosition.getDistance(hubPosition));
-            SmartDashboard.putNumber("Distance to Hub (inches)", distanceToHub.in(Inches));
+            distanceToHubInchesEntry.setDouble(distanceToHub.in(Inches));
 
             if (!m_hasInitializedPose) {
                 final PoseEstimate mt1 = LimelightHelpers.getBotPoseEstimate_wpiBlue(name);
