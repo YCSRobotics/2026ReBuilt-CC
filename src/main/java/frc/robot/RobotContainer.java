@@ -19,6 +19,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.PowerDistribution;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -159,10 +160,14 @@ public class RobotContainer {
             () -> -driver.getRightX()
         );
         swerve.setDefaultCommand(manualDriveCommand);
-        driver.back().onTrue(Commands.runOnce(() -> manualDriveCommand.toggleFieldCentric()));
+        // Back/Start: read the DS HID bitmask. XboxController.getRawButton() warns and returns
+        // false when stick buttonCount is reported as 6 even though DS lights button 7/8.
+        dsHidButton(driver.getHID().getPort(), XboxController.Button.kBack)
+            .onTrue(Commands.runOnce(manualDriveCommand::toggleFieldCentric));
 
         // Start = full reset (origin, 0°). Y = set heading to alliance forward (keep position); use when facing opposing wall.
-        driver.start().onTrue(Commands.runOnce(() -> swerve.resetPoseAndGyro(new Pose2d())));
+        dsHidButton(driver.getHID().getPort(), XboxController.Button.kStart)
+            .onTrue(Commands.runOnce(() -> swerve.resetPoseAndGyro(new Pose2d())));
         driver.y().onTrue(Commands.runOnce(() -> swerve.resetHeadingToAllianceForward()));
 
         // Practice-only: disabled operator action to set a deterministic starting pose.
@@ -178,6 +183,16 @@ public class RobotContainer {
                     }
                 }).ignoringDisable(true)
             );
+    }
+
+    /**
+     * DS button numbers are 1-indexed. Uses the joystick bitmask so presses still register
+     * when {@code getStickButtonCount} is stale or low (WPILib {@code getRawButton} then
+     * warns and returns false).
+     */
+    private static Trigger dsHidButton(int port, XboxController.Button button) {
+        final int mask = 1 << (button.value - 1);
+        return new Trigger(() -> (DriverStation.getStickButtons(port) & mask) != 0);
     }
 
     /**
