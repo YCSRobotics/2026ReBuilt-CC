@@ -79,8 +79,9 @@ public class Robot extends TimedRobot {
         } catch (RuntimeException ex) {
             DriverStation.reportError("Failed to stop SignalLogger: " + ex.getMessage(), false);
         }
-        // Reduce Limelight thermal output while disabled by throttling frame processing
-        LimelightHelpers.SetThrottle("limelight", 150);
+        // 0 = process every frame (needed for hub two-tag calibration while disabled).
+        // Restore 150 after calibration to cut Limelight heat on the cart.
+        LimelightHelpers.SetThrottle("limelight", 0);
     }
 
     @Override
