@@ -18,10 +18,13 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.PowerDistribution;
+import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.util.datalog.DoubleLogEntry;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.commands.AutoRoutines;
 import frc.robot.commands.ManualDriveCommand;
@@ -53,6 +56,9 @@ public class RobotContainer {
     private static final double kBackupPosePublishPeriodSeconds = 1.0;
 
     private final PowerDistribution pdh = new PowerDistribution(5, PowerDistribution.ModuleType.kRev);
+    private final DoubleLogEntry pdhVoltageLog;
+    private final DoubleLogEntry pdhTotalCurrentLog;
+    private final DoubleLogEntry batteryVoltageLog;
     private final Swerve swerve = new Swerve();
     private final IntakePivot intakePivot = new IntakePivot();
     private final IntakeRollers intakeRollers = new IntakeRollers();
@@ -80,10 +86,25 @@ public class RobotContainer {
     
     /** The container for the robot. Contains subsystems, OI devices, and commands. */
     public RobotContainer() {
+        final var log = DataLogManager.getLog();
+        pdhVoltageLog = new DoubleLogEntry(log, "/PDH/Voltage");
+        pdhTotalCurrentLog = new DoubleLogEntry(log, "/PDH/TotalCurrent");
+        batteryVoltageLog = new DoubleLogEntry(log, "/Robot/BatteryVoltage");
+
         pdh.setSwitchableChannel(true);
         configureBindings();
         autoRoutines.configure();
         swerve.registerTelemetry(swerveTelemetry::telemeterize);
+    }
+
+    /**
+     * Writes pack voltage and PDH total current to wpilog only (not SmartDashboard).
+     * Two PDH CAN reads per 20 ms cycle — cheaper than NT publish, still a small loop cost.
+     */
+    public void logPower() {
+        batteryVoltageLog.append(RobotController.getBatteryVoltage());
+        pdhVoltageLog.append(pdh.getVoltage());
+        pdhTotalCurrentLog.append(pdh.getTotalCurrent());
     }
 
     /**
@@ -162,8 +183,10 @@ public class RobotContainer {
         swerve.setDefaultCommand(manualDriveCommand);
         // Back/Start: read the DS HID bitmask. XboxController.getRawButton() warns and returns
         // false when stick buttonCount is reported as 6 even though DS lights button 7/8.
+        // Back on this pad latches in the bitmask (press = bit on, next press = bit off), so
+        // onTrue never sees a second rising edge. onChange toggles on both edges.
         dsHidButton(driver.getHID().getPort(), XboxController.Button.kBack)
-            .onTrue(Commands.runOnce(manualDriveCommand::toggleFieldCentric));
+            .onChange(Commands.runOnce(manualDriveCommand::toggleFieldCentric));
 
         // Start = full reset (origin, 0°). Y = set heading to alliance forward (keep position); use when facing opposing wall.
         dsHidButton(driver.getHID().getPort(), XboxController.Button.kStart)

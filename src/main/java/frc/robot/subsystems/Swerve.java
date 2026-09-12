@@ -53,7 +53,7 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     // Supply current limit applied to drive motors after swerve framework initialization.
     // Kept here (not TunerConstants.driveInitialConfigs) so it survives Tuner X regeneration
     // and does not interfere with the framework's own motor config sequence.
-    private static final double kDriveSupplyCurrentLimitAmps = 60.0;
+    private static final double kDriveSupplyCurrentLimitAmps = 50.0;
 
     // Module index order matches constructor: FrontLeft=0, FrontRight=1, BackLeft=2, BackRight=3
     private static final String[] kModuleNames = {"FL", "FR", "BL", "BR"};
