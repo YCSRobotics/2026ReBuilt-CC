@@ -99,12 +99,22 @@ public class RobotContainer {
 
     /**
      * Writes pack voltage and PDH total current to wpilog only (not SmartDashboard).
-     * Two PDH CAN reads per 20 ms cycle — cheaper than NT publish, still a small loop cost.
+     * REV PDH {@link PowerDistribution#getTotalCurrent()} is unsupported and returns 0;
+     * sum the cached per-channel currents instead. One extra JNI fill of 24 channels per
+     * 20 ms cycle — still cheaper than NT publish.
      */
     public void logPower() {
         batteryVoltageLog.append(RobotController.getBatteryVoltage());
         pdhVoltageLog.append(pdh.getVoltage());
-        pdhTotalCurrentLog.append(pdh.getTotalCurrent());
+        pdhTotalCurrentLog.append(sumPdhChannelCurrents());
+    }
+
+    private double sumPdhChannelCurrents() {
+        double total = 0.0;
+        for (final double channelAmps : pdh.getAllCurrents()) {
+            total += channelAmps;
+        }
+        return total;
     }
 
     /**
